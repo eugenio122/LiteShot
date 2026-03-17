@@ -3,17 +3,13 @@ LiteShot 🪶
 
 O LiteShot é uma ferramenta de captura de tela leve, offline e focada em produtividade. Desenvolvido em C# (.NET 10) e Windows Forms, ele substitui a tela de captura padrão por um overlay interativo que permite desenhar, anotar e salvar suas capturas rapidamente.
 
+
 📥 Download
 
 Você não precisa baixar o código-fonte para usar! Baixe a versão pronta para uso diretamente na página de Releases do GitHub:
 
 👉 Baixar LiteShot (Releases) https://github.com/eugenio122/LiteShot/releases/tag/v1.0.0
 
-Na hora de baixar, escolha a versão que melhor te atende: 
-
-Versão Portátil: (Recomendada) Um único arquivo .exe. Não requer instalação e já vem com tudo o que precisa embutido (não exige o .NET instalado no seu PC). É só baixar e rodar!
-
-Versão Normal: Um arquivo menor, mas requer que você tenha o .NET 10 Desktop Runtime instalado no seu computador.
 
 ✨ Funcionalidades
 
@@ -26,6 +22,7 @@ Atalhos Globais: Escolha o seu próprio atalho (ex: PrintScreen, Ctrl+Shift+S) q
 Multilíngue (i18n): Suporte nativo para Português, Inglês, Espanhol, Francês, Alemão e Italiano.
 
 Portátil: Pode ser executado a partir de um único arquivo .exe sem necessidade de instalação.
+
 
 🚀 Como usar
 
