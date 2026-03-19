@@ -1,6 +1,7 @@
 LiteShot 🪶
 
 
+
 O LiteShot é uma ferramenta de captura de tela leve, offline e focada em produtividade. Desenvolvido em C# (.NET 10) e Windows Forms, ele substitui a tela de captura padrão por um overlay interativo que permite desenhar, anotar e salvar suas capturas rapidamente.
 
 
@@ -8,7 +9,7 @@ O LiteShot é uma ferramenta de captura de tela leve, offline e focada em produt
 
 Você não precisa baixar o código-fonte para usar! Baixe a versão pronta para uso diretamente na página de Releases do GitHub:
 
-👉 Baixar LiteShot (Releases) https://github.com/eugenio122/LiteShot/releases/tag/v1.0.0
+👉 Baixar LiteShot (Versão Mais Recente) https://github.com/eugenio122/LiteShot/releases/tag/v1.1.0
 
 
 ✨ Funcionalidades
@@ -16,6 +17,8 @@ Você não precisa baixar o código-fonte para usar! Baixe a versão pronta para
 100% Offline e Seguro: Sem uploads indesejados para a nuvem. Suas imagens ficam apenas no seu computador ou na sua área de transferência.
 
 Ferramentas de Anotação: Caneta, Marcador, Linha, Seta, Formas, Texto e Seletor de Cores.
+
+Seleção Inteligente: Atalho Ctrl+A ou botão de expansão para capturar o monitor inteiro rapidamente.
 
 Atalhos Globais: Escolha o seu próprio atalho (ex: PrintScreen, Ctrl+Shift+S) que funciona mesmo com o app minimizado na bandeja.
 
@@ -38,14 +41,9 @@ Copie (Ctrl+C) ou Salve a imagem diretamente!
 
 🛠️ Como compilar (Para Desenvolvedores)
 
-Este projeto usa o .NET 10. Você pode compilá-lo de duas formas:
+Este projeto usa o .NET 10. Você pode compilá-lo para gerar o executável portátil da seguinte forma:
 
-1. Build Normal (Requer o .NET instalado no PC do usuário):
-
-dotnet build -c Release
-
-
-2. Build Portátil (Arquivo único, roda em qualquer PC):
+Build Portátil (Arquivo único, roda em qualquer PC):
 
 dotnet publish -c Release -r win-x64 --self-contained true
 
