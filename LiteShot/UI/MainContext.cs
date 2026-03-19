@@ -64,7 +64,7 @@ namespace LiteShot.UI
         private void OpenAbout(object? sender, EventArgs e)
         {
             Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(320, 180), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
-            Label lbl = new Label { Text = "LiteShot v1.0.0\nCopia, mas não faz igual.\n\nDesenvolvido para máxima produtividade.", Dock = DockStyle.Top, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
+            Label lbl = new Label { Text = "LiteShot v1.0.0\n\nDesenvolvido para máxima produtividade.", Dock = DockStyle.Top, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
             LinkLabel lnk = new LinkLabel { Text = "Página no GitHub", Dock = DockStyle.Top, TextAlign = ContentAlignment.MiddleCenter };
             lnk.LinkClicked += (s, ev) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/eugenio122/LiteShot") { UseShellExecute = true });
             about.Controls.Add(lnk);
