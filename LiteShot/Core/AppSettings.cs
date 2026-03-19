@@ -21,6 +21,8 @@ namespace LiteShot.Core
         public int[] CustomColors { get; set; } = new int[16]; // 16 slots de cores personalizadas do Windows
 
         public string Language { get; set; } = "pt-BR";
+
+        public bool FullScreenMode { get; set; } = false; //Define se a seleção expande ao abrir
     }
 
     /// <summary>

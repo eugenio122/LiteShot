@@ -17,6 +17,7 @@ namespace LiteShot.UI
         private HiddenMessageWindow messageWindow;
         private SelectionForm? currentSelectionForm;
 
+        public static bool FullScreenMode = false;
         public static bool ShowNotifications = true;
         public static bool CaptureCursor = false;
         public static string ImageFormat = "PNG";
@@ -52,8 +53,23 @@ namespace LiteShot.UI
 
             trayIcon.ContextMenuStrip.Items.Clear();
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("SettingsTitle") + "...", null, OpenSettings);
+
+            trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Sobre"), null, OpenAbout);
+
             trayIcon.ContextMenuStrip.Items.Add("-");
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Fechar"), null, Exit);
+        }
+
+        // Abrir a janela Sobre:
+        private void OpenAbout(object? sender, EventArgs e)
+        {
+            Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(320, 180), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
+            Label lbl = new Label { Text = "LiteShot v1.0.0\nCopia, mas não faz igual.\n\nDesenvolvido para máxima produtividade.", Dock = DockStyle.Top, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
+            LinkLabel lnk = new LinkLabel { Text = "Página no GitHub", Dock = DockStyle.Top, TextAlign = ContentAlignment.MiddleCenter };
+            lnk.LinkClicked += (s, ev) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/eugenio122/LiteShot") { UseShellExecute = true });
+            about.Controls.Add(lnk);
+            about.Controls.Add(lbl);
+            about.ShowDialog();
         }
 
         /// <summary>Desenha o ícone do Pincel/Stylus dinamicamente na memória (sem usar arquivo .ico externo).</summary>
@@ -97,6 +113,7 @@ namespace LiteShot.UI
             CurrentHotkey = config.Hotkey;
             LastColor = config.LastColor;
             CustomColors = config.CustomColors;
+            FullScreenMode = config.FullScreenMode;
             LanguageManager.CurrentLanguage = config.Language;
         }
 

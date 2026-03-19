@@ -63,9 +63,18 @@ namespace LiteShot.UI
 
             yPos += 40;
             this.Controls.Add(new Label { Text = LanguageManager.GetString("HotkeyLabel"), AutoSize = true, Location = new Point(20, yPos) });
-            txtHotkey = new TextBox { Location = new Point(140, yPos - 3), ReadOnly = true, Width = 150, TextAlign = HorizontalAlignment.Center };
+            txtHotkey = new TextBox { Location = new Point(140, yPos - 3), ReadOnly = true, Width = 85, TextAlign = HorizontalAlignment.Center };
             txtHotkey.KeyDown += TxtHotkey_KeyDown;
             this.Controls.Add(txtHotkey);
+
+            // Botão para restaurar o PrintScreen
+            Button btnReset = new Button { Text = LanguageManager.GetString("BtnReset"), Location = new Point(230, yPos - 4), Width = 65, Height = 25 };
+            btnReset.Click += (s, e) => {
+                newModifier = HotkeyManager.MOD_NONE;
+                newKey = HotkeyManager.VK_PRINTSCREEN;
+                txtHotkey.Text = "PrintScreen";
+            };
+            this.Controls.Add(btnReset);
 
             // Seletor de Idioma
             yPos += 40;
@@ -78,6 +87,8 @@ namespace LiteShot.UI
             btnSave = new Button { Text = LanguageManager.GetString("BtnSave"), Location = new Point(110, yPos), Width = 120, Height = 30 };
             btnSave.Click += BtnSave_Click;
             this.Controls.Add(btnSave);
+
+            
         }
 
         /// <summary>Preenche os campos do formulário com os valores atuais em memória.</summary>

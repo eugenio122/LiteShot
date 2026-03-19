@@ -34,6 +34,9 @@ namespace LiteShot.Core
                 ["Salvar"] = "Guardar",
                 ["Copiar"] = "Copiar",
                 ["Fechar"] = "Fechar",
+                ["TelaCheia"] = "Expandir / Tela Cheia",
+                ["Sobre"] = "Sobre o LiteShot",
+                ["BtnReset"] = "Padrão",
                 ["AppTooltip"] = "LiteShot"
             },
             ["en-US"] = new()
@@ -58,6 +61,9 @@ namespace LiteShot.Core
                 ["Salvar"] = "Save",
                 ["Copiar"] = "Copy",
                 ["Fechar"] = "Close",
+                ["TelaCheia"] = "Expand / Full Screen",
+                ["Sobre"] = "About LiteShot",
+                ["BtnReset"] = "Default",
                 ["AppTooltip"] = "LiteShot"
             },
             ["es-ES"] = new()
@@ -82,6 +88,9 @@ namespace LiteShot.Core
                 ["Salvar"] = "Guardar",
                 ["Copiar"] = "Copiar",
                 ["Fechar"] = "Cerrar",
+                ["TelaCheia"] = "Expandir / Pantalla Completa",
+                ["Sobre"] = "Acerca de LiteShot",
+                ["BtnReset"] = "Por defecto",
                 ["AppTooltip"] = "LiteShot"
             },
             ["fr-FR"] = new()
@@ -106,6 +115,9 @@ namespace LiteShot.Core
                 ["Salvar"] = "Enregistrer",
                 ["Copiar"] = "Copier",
                 ["Fechar"] = "Fermer",
+                ["TelaCheia"] = "Agrandir / Plein Écran",
+                ["Sobre"] = "À propos de LiteShot",
+                ["BtnReset"] = "Défaut",
                 ["AppTooltip"] = "LiteShot"
             },
             ["de-DE"] = new()
@@ -130,6 +142,9 @@ namespace LiteShot.Core
                 ["Salvar"] = "Speichern",
                 ["Copiar"] = "Kopieren",
                 ["Fechar"] = "Schließen",
+                ["TelaCheia"] = "Erweitern / Vollbild",
+                ["Sobre"] = "Über LiteShot",
+                ["BtnReset"] = "Standard",
                 ["AppTooltip"] = "LiteShot"
             },
             ["it-IT"] = new()
@@ -154,6 +169,9 @@ namespace LiteShot.Core
                 ["Salvar"] = "Salva",
                 ["Copiar"] = "Copia",
                 ["Fechar"] = "Chiudi",
+                ["TelaCheia"] = "Espandi / Schermo Intero",
+                ["Sobre"] = "Info su LiteShot",
+                ["BtnReset"] = "Predefinito",
                 ["AppTooltip"] = "LiteShot"
             }
         };

@@ -81,6 +81,15 @@ namespace LiteShot.UI
             txtInput.KeyDown += TxtInput_KeyDown;
             txtInput.LostFocus += TxtInput_LostFocus;
             this.Controls.Add(txtInput);
+
+            // 1. Garante que o atalho Ctrl+A é lido a qualquer momento
+            this.KeyPreview = true;
+
+            // 2. Se a expansão automática estiver ativa, preenche logo a tela
+            if (MainContext.FullScreenMode)
+            {
+                SelecionarMonitorAtual();
+            }
         }
 
         // --- SISTEMA DE DESENHO E FERRAMENTAS ---
@@ -380,7 +389,10 @@ namespace LiteShot.UI
                 {
                     var action = GetDragAction(e.Location);
                     if (action == DragAction.Move) this.Cursor = Cursors.SizeAll;
-                    else if (action != DragAction.None) this.Cursor = Cursors.SizeNWSE;
+                    else if (action == DragAction.ResizeTL || action == DragAction.ResizeBR) this.Cursor = Cursors.SizeNWSE; // Canto superior-esquerdo e inferior-direito
+                    else if (action == DragAction.ResizeTR || action == DragAction.ResizeBL) this.Cursor = Cursors.SizeNESW; // Canto superior-direito e inferior-esquerdo
+                    else if (action == DragAction.ResizeT || action == DragAction.ResizeB) this.Cursor = Cursors.SizeNS; // Cima e Baixo
+                    else if (action == DragAction.ResizeL || action == DragAction.ResizeR) this.Cursor = Cursors.SizeWE; // Esquerda e Direita
                     else this.Cursor = Cursors.Default;
                 }
             }
@@ -438,7 +450,7 @@ namespace LiteShot.UI
         private void CalcularPosicaoNavbar()
         {
             toolbarButtons.Clear();
-            string[] ferramentas = { "Caneta", "Linha", "Seta", "Forma", "Marcador", "Texto", "Cor", "Salvar", "Copiar", "Fechar" };
+            string[] ferramentas = { "Caneta", "Linha", "Seta", "Forma", "Marcador", "Texto", "Cor", "TelaCheia", "Salvar", "Copiar", "Fechar" };
 
             int bW = 34, bH = 34, margin = 4;
             int totalWidth = (bW + margin) * ferramentas.Length + margin;
@@ -475,6 +487,15 @@ namespace LiteShot.UI
             {
                 case "Caneta": case "Linha": case "Seta": case "Forma": case "Marcador": case "Texto": ferramentaAtual = (ferramentaAtual == acao ? "" : acao); this.Invalidate(); break;
                 case "Cor": AbrirSeletorDeCor(); break;
+                case "TelaCheia":
+                    MainContext.FullScreenMode = !MainContext.FullScreenMode;
+                    AppSettings config = SettingsManager.Load();
+                    config.FullScreenMode = MainContext.FullScreenMode;
+                    SettingsManager.Save(config);
+
+                    if (MainContext.FullScreenMode) SelecionarMonitorAtual();
+                    this.Invalidate();
+                    break;
                 case "Copiar":
                     Bitmap cropped = GetCroppedImage();
                     Clipboard.SetImage(cropped);
@@ -503,6 +524,18 @@ namespace LiteShot.UI
                     case "Marcador": using (Pen pMark = new Pen(Color.FromArgb(180, Color.Yellow), 4f) { StartCap = LineCap.Square, EndCap = LineCap.Square }) g.DrawLine(pMark, inner.Left, inner.Bottom - 2, inner.Right, inner.Top + 2); break;
                     case "Texto": using (Font f = new Font("Segoe UI", 12, FontStyle.Bold)) { SizeF s = g.MeasureString("T", f); g.DrawString("T", f, Brushes.White, rect.X + (rect.Width - s.Width) / 2, rect.Y + (rect.Height - s.Height) / 2); } break;
                     case "Cor": using (Brush bColor = new SolidBrush(currentColor)) g.FillRectangle(bColor, inner); g.DrawRectangle(Pens.White, inner); break;
+                    case "TelaCheia":
+                        // Desenha um pequeno quadrado central e bordas de expansão nos cantos
+                        g.DrawRectangle(pWhite, inner.X + 3, inner.Y + 3, inner.Width - 6, inner.Height - 6);
+                        g.DrawLine(pWhite, inner.X, inner.Y, inner.X + 4, inner.Y);
+                        g.DrawLine(pWhite, inner.X, inner.Y, inner.X, inner.Y + 4);
+                        g.DrawLine(pWhite, inner.Right, inner.Y, inner.Right - 4, inner.Y);
+                        g.DrawLine(pWhite, inner.Right, inner.Y, inner.Right, inner.Y + 4);
+                        g.DrawLine(pWhite, inner.X, inner.Bottom, inner.X + 4, inner.Bottom);
+                        g.DrawLine(pWhite, inner.X, inner.Bottom, inner.X, inner.Bottom - 4);
+                        g.DrawLine(pWhite, inner.Right, inner.Bottom, inner.Right - 4, inner.Bottom);
+                        g.DrawLine(pWhite, inner.Right, inner.Bottom, inner.Right, inner.Bottom - 4);
+                        break;
                     case "Salvar": g.DrawRectangle(pWhite, inner.X, inner.Y, inner.Width, inner.Height); g.DrawRectangle(pWhite, inner.X + 3, inner.Y, inner.Width - 6, 4); g.FillRectangle(Brushes.White, inner.X + 3, inner.Bottom - 5, inner.Width - 6, 5); break;
                     case "Copiar": g.DrawRectangle(pWhite, inner.X, inner.Y + 4, inner.Width - 4, inner.Height - 4); g.DrawLine(pWhite, inner.X + 4, inner.Y, inner.Right, inner.Y); g.DrawLine(pWhite, inner.Right, inner.Y, inner.Right, inner.Bottom - 4); break;
                     case "Fechar": g.DrawLine(pWhite, inner.Left, inner.Top, inner.Right, inner.Bottom); g.DrawLine(pWhite, inner.Right, inner.Top, inner.Left, inner.Bottom); break;
@@ -602,10 +635,12 @@ namespace LiteShot.UI
                 }
                 foreach (var btn in toolbarButtons)
                 {
-                    if (ferramentaAtual == btn.Key)
+                    if (ferramentaAtual == btn.Key || (btn.Key == "TelaCheia" && MainContext.FullScreenMode))
                     {
                         using (Brush activeBrush = new SolidBrush(Color.DimGray))
+                        {
                             g.FillRectangle(activeBrush, btn.Value);
+                        }
                     }
                     DrawIcon(g, btn.Key, btn.Value);
                 }
