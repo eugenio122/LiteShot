@@ -16,6 +16,9 @@ namespace LiteShot.UI
         private MainContext context;
         private CheckBox chkNotifications;
         private CheckBox chkCursor;
+        private CheckBox chkNavbarVertical;
+        private CheckBox chkKeepSelection;
+        private CheckBox chkKeepNavbar; 
         private ComboBox cmbFormat;
         private ComboBox cmbLang;
         private TextBox txtHotkey;
@@ -33,7 +36,7 @@ namespace LiteShot.UI
         {
             this.context = ctx;
             this.Text = LanguageManager.GetString("SettingsTitle");
-            this.Size = new Size(350, 380);
+            this.Size = new Size(350, 490);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -55,6 +58,18 @@ namespace LiteShot.UI
             chkCursor = new CheckBox { Text = LanguageManager.GetString("CaptureCursor"), AutoSize = true, Location = new Point(20, yPos) };
             this.Controls.Add(chkCursor);
 
+            yPos += 30;
+            chkNavbarVertical = new CheckBox { Text = LanguageManager.GetString("NavbarVertical"), AutoSize = true, Location = new Point(20, yPos) };
+            this.Controls.Add(chkNavbarVertical);
+
+            yPos += 30;
+            chkKeepSelection = new CheckBox { Text = LanguageManager.GetString("KeepSelection"), AutoSize = true, Location = new Point(20, yPos) };
+            this.Controls.Add(chkKeepSelection);
+
+            yPos += 30;
+            chkKeepNavbar = new CheckBox { Text = LanguageManager.GetString("KeepNavbarPosition"), AutoSize = true, Location = new Point(20, yPos) };
+            this.Controls.Add(chkKeepNavbar);
+
             yPos += 40;
             this.Controls.Add(new Label { Text = LanguageManager.GetString("ImgFormat"), AutoSize = true, Location = new Point(20, yPos) });
             cmbFormat = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(140, yPos - 3), Width = 150 };
@@ -67,7 +82,6 @@ namespace LiteShot.UI
             txtHotkey.KeyDown += TxtHotkey_KeyDown;
             this.Controls.Add(txtHotkey);
 
-            // Botão para restaurar o PrintScreen
             Button btnReset = new Button { Text = LanguageManager.GetString("BtnReset"), Location = new Point(230, yPos - 4), Width = 65, Height = 25 };
             btnReset.Click += (s, e) => {
                 newModifier = HotkeyManager.MOD_NONE;
@@ -76,7 +90,6 @@ namespace LiteShot.UI
             };
             this.Controls.Add(btnReset);
 
-            // Seletor de Idioma
             yPos += 40;
             this.Controls.Add(new Label { Text = LanguageManager.GetString("LangLabel"), AutoSize = true, Location = new Point(20, yPos) });
             cmbLang = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(140, yPos - 3), Width = 150 };
@@ -87,8 +100,6 @@ namespace LiteShot.UI
             btnSave = new Button { Text = LanguageManager.GetString("BtnSave"), Location = new Point(110, yPos), Width = 120, Height = 30 };
             btnSave.Click += BtnSave_Click;
             this.Controls.Add(btnSave);
-
-            
         }
 
         /// <summary>Preenche os campos do formulário com os valores atuais em memória.</summary>
@@ -96,6 +107,9 @@ namespace LiteShot.UI
         {
             chkNotifications.Checked = MainContext.ShowNotifications;
             chkCursor.Checked = MainContext.CaptureCursor;
+            chkNavbarVertical.Checked = MainContext.NavbarVertical;
+            chkKeepSelection.Checked = MainContext.KeepSelection;
+            chkKeepNavbar.Checked = MainContext.KeepNavbarPosition; 
             cmbFormat.SelectedItem = MainContext.ImageFormat;
             cmbLang.SelectedItem = LanguageManager.CurrentLanguage;
 
@@ -157,29 +171,28 @@ namespace LiteShot.UI
         /// <summary>Salva as novas opções no disco, aplica a hotkey e atualiza o idioma.</summary>
         private void BtnSave_Click(object? sender, EventArgs e)
         {
-            // 1. Atualiza as variáveis na memória
             MainContext.ShowNotifications = chkNotifications.Checked;
             MainContext.CaptureCursor = chkCursor.Checked;
+            MainContext.NavbarVertical = chkNavbarVertical.Checked;
+            MainContext.KeepSelection = chkKeepSelection.Checked;
+            MainContext.KeepNavbarPosition = chkKeepNavbar.Checked; 
             MainContext.ImageFormat = cmbFormat.SelectedItem?.ToString() ?? "PNG";
             LanguageManager.CurrentLanguage = cmbLang.SelectedItem?.ToString() ?? "pt-BR";
             MainContext.CurrentHotkeyModifier = newModifier;
             MainContext.CurrentHotkey = newKey;
 
-            // 2. Salva no JSON
-            AppSettings config = new AppSettings
-            {
-                ShowNotifications = MainContext.ShowNotifications,
-                CaptureCursor = MainContext.CaptureCursor,
-                ImageFormat = MainContext.ImageFormat,
-                Language = LanguageManager.CurrentLanguage,
-                HotkeyModifier = MainContext.CurrentHotkeyModifier,
-                Hotkey = MainContext.CurrentHotkey,
-                LastColor = MainContext.LastColor,
-                CustomColors = MainContext.CustomColors
-            };
+            AppSettings config = SettingsManager.Load();
+            config.ShowNotifications = MainContext.ShowNotifications;
+            config.CaptureCursor = MainContext.CaptureCursor;
+            config.NavbarVertical = MainContext.NavbarVertical;
+            config.KeepSelection = MainContext.KeepSelection;
+            config.KeepNavbarPosition = MainContext.KeepNavbarPosition; 
+            config.ImageFormat = MainContext.ImageFormat;
+            config.Language = LanguageManager.CurrentLanguage;
+            config.HotkeyModifier = MainContext.CurrentHotkeyModifier;
+            config.Hotkey = MainContext.CurrentHotkey;
             SettingsManager.Save(config);
 
-            // 3. Aplica as mudanças imediatas
             context.RegisterGlobalHotkey();
             context.AtualizarTextosInterface();
 

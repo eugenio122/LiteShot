@@ -28,6 +28,14 @@ namespace LiteShot.UI
         public static string LastColor = "#FF0000";
         public static int[] CustomColors = new int[16];
 
+        public static bool NavbarVertical = false;
+
+        // Variáveis de Memória 
+        public static bool KeepSelection = false;
+        public static bool KeepNavbarPosition = false;
+        public static Rectangle LastSelection = Rectangle.Empty;
+        public static Point LastNavbarPosition = Point.Empty;
+
         /// <summary>Construtor: Carrega configurações, cria o ícone da bandeja e registra o atalho global.</summary>
         public MainContext()
         {
@@ -114,7 +122,13 @@ namespace LiteShot.UI
             LastColor = config.LastColor;
             CustomColors = config.CustomColors;
             FullScreenMode = config.FullScreenMode;
+            NavbarVertical = config.NavbarVertical;
             LanguageManager.CurrentLanguage = config.Language;
+
+            KeepSelection = config.KeepSelection;
+            KeepNavbarPosition = config.KeepNavbarPosition;
+            LastSelection = config.LastSelection;
+            LastNavbarPosition = config.LastNavbarPosition;
         }
 
         /// <summary>Associa o atalho escolhido pelo usuário à janela oculta do Windows.</summary>

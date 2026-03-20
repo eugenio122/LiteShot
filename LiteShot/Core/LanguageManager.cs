@@ -20,7 +20,7 @@ namespace LiteShot.Core
                 ["ImgFormat"] = "Formato de Imagem:",
                 ["HotkeyLabel"] = "Tecla de Atalho:",
                 ["LangLabel"] = "Idioma:",
-                ["BtnSave"] = "Guardar e Fechar",
+                ["BtnSave"] = "Salvar e Fechar",
                 ["ToastCopied"] = "Copiado para a área de transferência!",
                 ["ToastSaved"] = "Imagem guardada com sucesso!",
                 ["DevMode"] = "Em desenvolvimento...",
@@ -31,13 +31,16 @@ namespace LiteShot.Core
                 ["Marcador"] = "Marcador",
                 ["Texto"] = "Texto",
                 ["Cor"] = "Cor",
-                ["Salvar"] = "Guardar",
+                ["Salvar"] = "Salvar",
                 ["Copiar"] = "Copiar",
                 ["Fechar"] = "Fechar",
                 ["TelaCheia"] = "Expandir / Tela Cheia",
                 ["Sobre"] = "Sobre o LiteShot",
                 ["BtnReset"] = "Padrão",
-                ["AppTooltip"] = "LiteShot"
+                ["NavbarVertical"] = "Barra de Ferramentas Vertical",
+                ["AppTooltip"] = "LiteShot",
+                ["KeepSelection"] = "Manter posição da área selecionada",
+                ["KeepNavbarPosition"] = "Manter posição da barra de ferramentas"
             },
             ["en-US"] = new()
             {
@@ -64,7 +67,10 @@ namespace LiteShot.Core
                 ["TelaCheia"] = "Expand / Full Screen",
                 ["Sobre"] = "About LiteShot",
                 ["BtnReset"] = "Default",
-                ["AppTooltip"] = "LiteShot"
+                ["NavbarVertical"] = "Vertical Toolbar",
+                ["AppTooltip"] = "LiteShot",
+                ["KeepSelection"] = "Keep selected area position",
+                ["KeepNavbarPosition"] = "Keep toolbar position"
             },
             ["es-ES"] = new()
             {
@@ -91,7 +97,10 @@ namespace LiteShot.Core
                 ["TelaCheia"] = "Expandir / Pantalla Completa",
                 ["Sobre"] = "Acerca de LiteShot",
                 ["BtnReset"] = "Por defecto",
-                ["AppTooltip"] = "LiteShot"
+                ["NavbarVertical"] = "Barra de herramientas vertical",
+                ["AppTooltip"] = "LiteShot",
+                ["KeepSelection"] = "Mantener posición del área seleccionada",
+                ["KeepNavbarPosition"] = "Mantener posición de la barra de herramientas"
             },
             ["fr-FR"] = new()
             {
@@ -118,7 +127,10 @@ namespace LiteShot.Core
                 ["TelaCheia"] = "Agrandir / Plein Écran",
                 ["Sobre"] = "À propos de LiteShot",
                 ["BtnReset"] = "Défaut",
-                ["AppTooltip"] = "LiteShot"
+                ["NavbarVertical"] = "Barre d'outils verticale",
+                ["AppTooltip"] = "LiteShot",
+                ["KeepSelection"] = "Conserver la position de la zone sélectionnée",
+                ["KeepNavbarPosition"] = "Conserver la position de la barre d'outils"
             },
             ["de-DE"] = new()
             {
@@ -145,7 +157,10 @@ namespace LiteShot.Core
                 ["TelaCheia"] = "Erweitern / Vollbild",
                 ["Sobre"] = "Über LiteShot",
                 ["BtnReset"] = "Standard",
-                ["AppTooltip"] = "LiteShot"
+                ["NavbarVertical"] = "Vertikale Symbolleiste",
+                ["AppTooltip"] = "LiteShot",
+                ["KeepSelection"] = "Position des ausgewählten Bereichs beibehalten",
+                ["KeepNavbarPosition"] = "Position der Symbolleiste beibehalten"
             },
             ["it-IT"] = new()
             {
@@ -172,7 +187,10 @@ namespace LiteShot.Core
                 ["TelaCheia"] = "Espandi / Schermo Intero",
                 ["Sobre"] = "Info su LiteShot",
                 ["BtnReset"] = "Predefinito",
-                ["AppTooltip"] = "LiteShot"
+                ["NavbarVertical"] = "Barra degli strumenti verticale",
+                ["AppTooltip"] = "LiteShot",
+                ["KeepSelection"] = "Mantieni posizione dell'area selezionata",
+                ["KeepNavbarPosition"] = "Mantieni posizione della barra degli strumenti"
             }
         };
 

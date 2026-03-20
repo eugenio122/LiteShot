@@ -19,6 +19,9 @@ namespace LiteShot.UI
         private Rectangle selectionRect;
         private bool isSelectionFinished = false;
 
+        // Histórico para o Ctrl+Z (Desfazer)
+        private Stack<Bitmap> historicoDesenho = new Stack<Bitmap>();
+
         // Navbar
         private Dictionary<string, Rectangle> toolbarButtons = new Dictionary<string, Rectangle>();
         private Rectangle fullNavbarRect;
@@ -43,6 +46,10 @@ namespace LiteShot.UI
         private Point drawStartPoint;
         private Point drawCurrentPoint;
         private TextBox txtInput;
+
+        // Variáveis para a nova Navbar arrastável
+        private string pressedButton = "";
+        private bool isDraggingNavbar = false;
 
         public SelectionForm() { }
 
@@ -90,6 +97,16 @@ namespace LiteShot.UI
             {
                 SelecionarMonitorAtual();
             }
+            // 3. Restaura apenas a seleção (se a opção estiver ativa)
+            else if (MainContext.KeepSelection && !MainContext.LastSelection.IsEmpty)
+            {
+                if (SystemInformation.VirtualScreen.IntersectsWith(MainContext.LastSelection))
+                {
+                    selectionRect = MainContext.LastSelection;
+                    isSelectionFinished = true;
+                    CalcularPosicaoNavbar();
+                }
+            }
         }
 
         // --- SISTEMA DE DESENHO E FERRAMENTAS ---
@@ -125,6 +142,9 @@ namespace LiteShot.UI
         {
             if (txtInput.Visible && !string.IsNullOrWhiteSpace(txtInput.Text))
             {
+                // Salva o estado atual na pilha ANTES de estampar o texto na imagem
+                historicoDesenho.Push((Bitmap)drawingLayer.Clone());
+
                 using (Graphics g = Graphics.FromImage(drawingLayer))
                 {
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
@@ -231,19 +251,23 @@ namespace LiteShot.UI
 
             if (isSelectionFinished)
             {
-                foreach (var btn in toolbarButtons)
-                {
-                    if (btn.Value.Contains(e.Location))
-                    {
-                        ExecutarAcaoToolbar(btn.Key);
-                        return;
-                    }
-                }
-
+                // UX: Ao invés de executar o botão logo no clique (MouseDown),
+                // registra onde clicou e espera o MouseMove ou MouseUp.
                 if (fullNavbarRect.Contains(e.Location))
                 {
                     currentAction = DragAction.MoveNavbar;
                     dragStartPoint = e.Location;
+                    isDraggingNavbar = false;
+                    pressedButton = "";
+
+                    foreach (var btn in toolbarButtons)
+                    {
+                        if (btn.Value.Contains(e.Location))
+                        {
+                            pressedButton = btn.Key;
+                            break;
+                        }
+                    }
                     return;
                 }
 
@@ -258,6 +282,9 @@ namespace LiteShot.UI
                     }
                     else
                     {
+                        // Salva o estado atual da camada de desenho ANTES de começar um novo traço/forma
+                        historicoDesenho.Push((Bitmap)drawingLayer.Clone());
+
                         isDrawingToolActive = true;
                         drawStartPoint = e.Location;
                         drawCurrentPoint = e.Location;
@@ -317,12 +344,20 @@ namespace LiteShot.UI
             {
                 int dx = e.X - dragStartPoint.X;
                 int dy = e.Y - dragStartPoint.Y;
-                navbarCustomPosition.X += dx;
-                navbarCustomPosition.Y += dy;
-                dragStartPoint = e.Location;
-                isNavbarMoved = true;
-                CalcularPosicaoNavbar();
-                this.Invalidate();
+
+                // Se o mouse moveu mais de 3 pixels, consideramos arrasto e não clique!
+                if (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)
+                    isDraggingNavbar = true;
+
+                if (isDraggingNavbar)
+                {
+                    navbarCustomPosition.X += dx;
+                    navbarCustomPosition.Y += dy;
+                    dragStartPoint = e.Location;
+                    isNavbarMoved = true;
+                    CalcularPosicaoNavbar();
+                    this.Invalidate();
+                }
             }
             else if (currentAction == DragAction.Create)
             {
@@ -401,6 +436,23 @@ namespace LiteShot.UI
         /// <summary>Finaliza a ação atual (soltar o clique).</summary>
         protected override void OnMouseUp(MouseEventArgs e)
         {
+            // Se soltou o clique sem arrastar, ativa o botão!
+            if (currentAction == DragAction.MoveNavbar)
+            {
+                if (!isDraggingNavbar && !string.IsNullOrEmpty(pressedButton))
+                {
+                    ExecutarAcaoToolbar(pressedButton);
+                }
+                else if (isDraggingNavbar)
+                {
+                    // Se moveu a navbar, guarda independentemente da seleção (se a opção estiver ativa)
+                    SalvarPosicoes();
+                }
+                currentAction = DragAction.None;
+                this.Invalidate();
+                return;
+            }
+
             if (isDrawingToolActive)
             {
                 isDrawingToolActive = false;
@@ -435,6 +487,9 @@ namespace LiteShot.UI
                 {
                     isSelectionFinished = true;
                     CalcularPosicaoNavbar();
+
+                    // Salva as novas dimensões isoladamente
+                    SalvarPosicoes();
                 }
                 else
                 {
@@ -445,6 +500,30 @@ namespace LiteShot.UI
             }
         }
 
+        /// <summary>Guarda as posições ativas independentemente umas das outras.</summary>
+        private void SalvarPosicoes()
+        {
+            bool mudouAlgo = false;
+            AppSettings config = SettingsManager.Load();
+
+            if (MainContext.KeepSelection && isSelectionFinished)
+            {
+                MainContext.LastSelection = selectionRect;
+                config.LastSelection = MainContext.LastSelection;
+                mudouAlgo = true;
+            }
+
+            if (MainContext.KeepNavbarPosition && isNavbarMoved)
+            {
+                MainContext.LastNavbarPosition = navbarCustomPosition;
+                config.LastNavbarPosition = MainContext.LastNavbarPosition;
+                mudouAlgo = true;
+            }
+
+            if (mudouAlgo) SettingsManager.Save(config);
+        }
+
+
         // --- NAVBAR (BARRA DE FERRAMENTAS) ---
         /// <summary>Calcula as coordenadas da barra de ferramentas, mantendo-a dentro dos limites visíveis do monitor.</summary>
         private void CalcularPosicaoNavbar()
@@ -453,29 +532,50 @@ namespace LiteShot.UI
             string[] ferramentas = { "Caneta", "Linha", "Seta", "Forma", "Marcador", "Texto", "Cor", "TelaCheia", "Salvar", "Copiar", "Fechar" };
 
             int bW = 34, bH = 34, margin = 4;
-            int totalWidth = (bW + margin) * ferramentas.Length + margin;
-            int totalHeight = bH + margin * 2;
+            int paddingBorder = 8;
+
+            int totalWidth = MainContext.NavbarVertical ? (bW + paddingBorder * 2) : ((bW + margin) * ferramentas.Length - margin + paddingBorder * 2);
+            int totalHeight = MainContext.NavbarVertical ? ((bH + margin) * ferramentas.Length - margin + paddingBorder * 2) : (bH + paddingBorder * 2);
 
             if (!isNavbarMoved)
             {
-                int currentX = selectionRect.Right - totalWidth - margin;
-                int toolbarY = selectionRect.Bottom - totalHeight - margin;
-                if (currentX < selectionRect.Left) currentX = selectionRect.Left + margin;
-                if (toolbarY < selectionRect.Top) toolbarY = selectionRect.Bottom + margin;
-                if (currentX < 0) currentX = margin;
-                if (currentX + totalWidth > this.Width) currentX = this.Width - totalWidth - margin;
-                if (toolbarY + totalHeight > this.Height) toolbarY = this.Height - totalHeight - margin;
-                navbarCustomPosition = new Point(currentX, toolbarY);
+                // Se o utilizador pediu para manter a posição da navbar, ignora o grude padrão
+                if (MainContext.KeepNavbarPosition && !MainContext.LastNavbarPosition.IsEmpty)
+                {
+                    navbarCustomPosition = MainContext.LastNavbarPosition;
+                    isNavbarMoved = true; // "Finge" que o usuário a moveu para a travar ali
+
+                    // Limites de segurança para garantir que a barra não sai do ecrã se mudarmos de monitor
+                    if (navbarCustomPosition.X + totalWidth > this.Width) navbarCustomPosition.X = this.Width - totalWidth - paddingBorder;
+                    if (navbarCustomPosition.Y + totalHeight > this.Height) navbarCustomPosition.Y = this.Height - totalHeight - paddingBorder;
+                    if (navbarCustomPosition.X < 0) navbarCustomPosition.X = paddingBorder;
+                    if (navbarCustomPosition.Y < 0) navbarCustomPosition.Y = paddingBorder;
+                }
+                else
+                {
+                    int currentX = selectionRect.Right - totalWidth - paddingBorder;
+                    int toolbarY = selectionRect.Bottom - totalHeight - paddingBorder;
+                    if (currentX < selectionRect.Left) currentX = selectionRect.Left + paddingBorder;
+                    if (toolbarY < selectionRect.Top) toolbarY = selectionRect.Bottom + paddingBorder;
+                    if (currentX < 0) currentX = paddingBorder;
+                    if (currentX + totalWidth > this.Width) currentX = this.Width - totalWidth - paddingBorder;
+                    if (toolbarY + totalHeight > this.Height) toolbarY = this.Height - totalHeight - paddingBorder;
+                    navbarCustomPosition = new Point(currentX, toolbarY);
+                }
             }
 
             fullNavbarRect = new Rectangle(navbarCustomPosition.X, navbarCustomPosition.Y, totalWidth, totalHeight);
-            int btnX = navbarCustomPosition.X + margin;
-            int btnY = navbarCustomPosition.Y + margin;
+            int btnX = navbarCustomPosition.X + paddingBorder;
+            int btnY = navbarCustomPosition.Y + paddingBorder;
 
             foreach (string btn in ferramentas)
             {
                 toolbarButtons.Add(btn, new Rectangle(btnX, btnY, bW, bH));
-                btnX += bW + margin;
+
+                if (MainContext.NavbarVertical)
+                    btnY += bH + margin;
+                else
+                    btnX += bW + margin;
             }
         }
 
@@ -575,14 +675,37 @@ namespace LiteShot.UI
         protected override void OnKeyDown(KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Escape) { if (!string.IsNullOrEmpty(ferramentaAtual)) { ferramentaAtual = ""; this.Invalidate(); } else this.Close(); }
+
+            // --- CORREÇÃO DE VAZAMENTOS E ATALHOS ---
             if (e.Control && e.KeyCode == Keys.C && isSelectionFinished)
             {
-                Bitmap cropped = GetCroppedImage();
-                Clipboard.SetImage(cropped);
-                if (MainContext.ShowNotifications) MainContext.ShowToast(LanguageManager.GetString("ToastCopied"), cropped);
-                this.Close();
+                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                ExecutarAcaoToolbar("Copiar");
             }
-            if (e.Control && e.KeyCode == Keys.A) SelecionarMonitorAtual();
+
+            if (e.Control && e.KeyCode == Keys.S && isSelectionFinished)
+            {
+                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                ExecutarAcaoToolbar("Salvar");
+            }
+
+            if (e.Control && e.KeyCode == Keys.A)
+            {
+                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                SelecionarMonitorAtual();
+            }
+
+            if (e.Control && e.KeyCode == Keys.Z)
+            {
+                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                if (historicoDesenho.Count > 0)
+                {
+                    Bitmap oldLayer = drawingLayer;
+                    drawingLayer = historicoDesenho.Pop();
+                    oldLayer.Dispose();
+                    this.Invalidate();
+                }
+            }
         }
 
         /// <summary>Motor de renderização: Desenha o fundo escuro, a seleção iluminada, as ferramentas ativas e os botões 60x por segundo.</summary>
@@ -649,7 +772,18 @@ namespace LiteShot.UI
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { originalScreenshot?.Dispose(); drawingLayer?.Dispose(); toolTip.Dispose(); }
+            if (disposing)
+            {
+                originalScreenshot?.Dispose();
+                drawingLayer?.Dispose();
+                toolTip.Dispose();
+
+                // Limpa a memória das imagens guardadas na pilha
+                while (historicoDesenho.Count > 0)
+                {
+                    historicoDesenho.Pop().Dispose();
+                }
+            }
             base.Dispose(disposing);
         }
     }

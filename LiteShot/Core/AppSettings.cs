@@ -23,6 +23,17 @@ namespace LiteShot.Core
         public string Language { get; set; } = "pt-BR";
 
         public bool FullScreenMode { get; set; } = false; //Define se a seleção expande ao abrir
+
+        // Define se a barra de ferramentas (navbar) fica na vertical
+        public bool NavbarVertical { get; set; } = false;
+
+        // Opções independentes de Memória de Posição
+        public bool KeepSelection { get; set; } = false;
+        public bool KeepNavbarPosition { get; set; } = false;
+
+        // Dados Salvos
+        public Rectangle LastSelection { get; set; } = Rectangle.Empty;
+        public Point LastNavbarPosition { get; set; } = Point.Empty;
     }
 
     /// <summary>
@@ -47,7 +58,7 @@ namespace LiteShot.Core
             }
             catch (Exception ex)
             {
-                // Regista o erro para os programadores na aba de "Saída" do Visual Studio
+                // Registra o erro para os programadores na aba de "Saída" do Visual Studio
                 // Garante que a aplicação portátil não crasha no PC do utilizador final
                 Debug.WriteLine($"[LiteShot] Erro ao carregar configurações: {ex.Message}");
             }
