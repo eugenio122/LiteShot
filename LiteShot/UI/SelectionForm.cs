@@ -19,8 +19,9 @@ namespace LiteShot.UI
         private Rectangle selectionRect;
         private bool isSelectionFinished = false;
 
-        // Histórico para o Ctrl+Z (Desfazer)
+        // Históricos para o Ctrl+Z (Desfazer) e Ctrl+Y (Refazer)
         private Stack<Bitmap> historicoDesenho = new Stack<Bitmap>();
+        private Stack<Bitmap> historicoRefazer = new Stack<Bitmap>();
 
         // Navbar
         private Dictionary<string, Rectangle> toolbarButtons = new Dictionary<string, Rectangle>();
@@ -74,7 +75,6 @@ namespace LiteShot.UI
             this.Cursor = Cursors.Cross;
             this.ShowInTaskbar = false;
 
-            // Configuração do ToolTip para tradução
             toolTip.InitialDelay = 500;
             toolTip.ReshowDelay = 100;
 
@@ -106,6 +106,14 @@ namespace LiteShot.UI
                     isSelectionFinished = true;
                     CalcularPosicaoNavbar();
                 }
+            }
+        }
+
+        private void LimparRefazer()
+        {
+            while (historicoRefazer.Count > 0)
+            {
+                historicoRefazer.Pop().Dispose();
             }
         }
 
@@ -195,6 +203,7 @@ namespace LiteShot.UI
             isNavbarMoved = false;
             isSelectionFinished = true;
             CalcularPosicaoNavbar();
+            SalvarPosicoes();
             this.Invalidate();
         }
 
@@ -262,7 +271,7 @@ namespace LiteShot.UI
 
                     foreach (var btn in toolbarButtons)
                     {
-                        if (btn.Value.Contains(e.Location))
+                        if (btn.Value.Contains(e.Location) && btn.Key != "Separator")
                         {
                             pressedButton = btn.Key;
                             break;
@@ -282,6 +291,8 @@ namespace LiteShot.UI
                     }
                     else
                     {
+                        LimparRefazer();
+
                         // Salva o estado atual da camada de desenho ANTES de começar um novo traço/forma
                         historicoDesenho.Push((Bitmap)drawingLayer.Clone());
 
@@ -529,13 +540,29 @@ namespace LiteShot.UI
         private void CalcularPosicaoNavbar()
         {
             toolbarButtons.Clear();
-            string[] ferramentas = { "Caneta", "Linha", "Seta", "Forma", "Marcador", "Texto", "Cor", "TelaCheia", "Salvar", "Copiar", "Fechar" };
+            string[] ferramentas = { "Caneta", "Linha", "Seta", "Forma", "Marcador", "Texto", "Cor", "Separator", "Desfazer", "Refazer", "TelaCheia", "Salvar", "Copiar", "Fechar" };
 
-            int bW = 34, bH = 34, margin = 4;
-            int paddingBorder = 8;
+            int bW = 34, bH = 34, margin = 2;
+            int paddingBorder = 4;
+            int sepSize = 8; // Tamanho compacto apenas para o separador
 
-            int totalWidth = MainContext.NavbarVertical ? (bW + paddingBorder * 2) : ((bW + margin) * ferramentas.Length - margin + paddingBorder * 2);
-            int totalHeight = MainContext.NavbarVertical ? ((bH + margin) * ferramentas.Length - margin + paddingBorder * 2) : (bH + paddingBorder * 2);
+            int totalW = paddingBorder * 2 - margin;
+            int totalH = paddingBorder * 2 - margin;
+
+            // Pré-calcula o tamanho total da barra dependendo da orientação
+            foreach (string btn in ferramentas)
+            {
+                if (MainContext.NavbarVertical)
+                {
+                    totalH += (btn == "Separator" ? sepSize : bH) + margin;
+                    totalW = bW + paddingBorder * 2;
+                }
+                else
+                {
+                    totalW += (btn == "Separator" ? sepSize : bW) + margin;
+                    totalH = bH + paddingBorder * 2;
+                }
+            }
 
             if (!isNavbarMoved)
             {
@@ -546,36 +573,67 @@ namespace LiteShot.UI
                     isNavbarMoved = true; // "Finge" que o usuário a moveu para a travar ali
 
                     // Limites de segurança para garantir que a barra não sai do ecrã se mudarmos de monitor
-                    if (navbarCustomPosition.X + totalWidth > this.Width) navbarCustomPosition.X = this.Width - totalWidth - paddingBorder;
-                    if (navbarCustomPosition.Y + totalHeight > this.Height) navbarCustomPosition.Y = this.Height - totalHeight - paddingBorder;
+                    if (navbarCustomPosition.X + totalW > this.Width) navbarCustomPosition.X = this.Width - totalW - paddingBorder;
+                    if (navbarCustomPosition.Y + totalH > this.Height) navbarCustomPosition.Y = this.Height - totalH - paddingBorder;
                     if (navbarCustomPosition.X < 0) navbarCustomPosition.X = paddingBorder;
                     if (navbarCustomPosition.Y < 0) navbarCustomPosition.Y = paddingBorder;
                 }
                 else
                 {
-                    int currentX = selectionRect.Right - totalWidth - paddingBorder;
-                    int toolbarY = selectionRect.Bottom - totalHeight - paddingBorder;
+                    int currentX = selectionRect.Right - totalW - paddingBorder;
+                    int toolbarY = selectionRect.Bottom - totalH - paddingBorder;
                     if (currentX < selectionRect.Left) currentX = selectionRect.Left + paddingBorder;
                     if (toolbarY < selectionRect.Top) toolbarY = selectionRect.Bottom + paddingBorder;
                     if (currentX < 0) currentX = paddingBorder;
-                    if (currentX + totalWidth > this.Width) currentX = this.Width - totalWidth - paddingBorder;
-                    if (toolbarY + totalHeight > this.Height) toolbarY = this.Height - totalHeight - paddingBorder;
+                    if (currentX + totalW > this.Width) currentX = this.Width - totalW - paddingBorder;
+                    if (toolbarY + totalH > this.Height) toolbarY = this.Height - totalH - paddingBorder;
                     navbarCustomPosition = new Point(currentX, toolbarY);
                 }
             }
 
-            fullNavbarRect = new Rectangle(navbarCustomPosition.X, navbarCustomPosition.Y, totalWidth, totalHeight);
+            fullNavbarRect = new Rectangle(navbarCustomPosition.X, navbarCustomPosition.Y, totalW, totalH);
             int btnX = navbarCustomPosition.X + paddingBorder;
             int btnY = navbarCustomPosition.Y + paddingBorder;
 
             foreach (string btn in ferramentas)
             {
-                toolbarButtons.Add(btn, new Rectangle(btnX, btnY, bW, bH));
+                int w = btn == "Separator" ? sepSize : bW;
+                int h = btn == "Separator" ? sepSize : bH;
 
                 if (MainContext.NavbarVertical)
-                    btnY += bH + margin;
+                {
+                    toolbarButtons.Add(btn, new Rectangle(btnX, btnY, bW, h)); // O separador ocupa a largura toda
+                    btnY += h + margin;
+                }
                 else
-                    btnX += bW + margin;
+                {
+                    toolbarButtons.Add(btn, new Rectangle(btnX, btnY, w, bH)); // O separador ocupa a altura toda
+                    btnX += w + margin;
+                }
+            }
+        }
+
+        private void AcaoDesfazer()
+        {
+            if (historicoDesenho.Count > 0)
+            {
+                historicoRefazer.Push((Bitmap)drawingLayer.Clone());
+                Bitmap oldLayer = drawingLayer;
+                drawingLayer = historicoDesenho.Pop();
+                oldLayer.Dispose();
+                this.Invalidate();
+            }
+        }
+
+        private void AcaoRefazer()
+        {
+            if (historicoRefazer.Count > 0)
+            {
+                historicoDesenho.Push((Bitmap)drawingLayer.Clone());
+                Bitmap oldLayer = drawingLayer;
+                drawingLayer = historicoRefazer.Pop();
+                oldLayer.Dispose();
+                this.Invalidate();
             }
         }
 
@@ -587,6 +645,8 @@ namespace LiteShot.UI
             {
                 case "Caneta": case "Linha": case "Seta": case "Forma": case "Marcador": case "Texto": ferramentaAtual = (ferramentaAtual == acao ? "" : acao); this.Invalidate(); break;
                 case "Cor": AbrirSeletorDeCor(); break;
+                case "Desfazer": AcaoDesfazer(); break;
+                case "Refazer": AcaoRefazer(); break;
                 case "TelaCheia":
                     MainContext.FullScreenMode = !MainContext.FullScreenMode;
                     AppSettings config = SettingsManager.Load();
@@ -624,8 +684,31 @@ namespace LiteShot.UI
                     case "Marcador": using (Pen pMark = new Pen(Color.FromArgb(180, Color.Yellow), 4f) { StartCap = LineCap.Square, EndCap = LineCap.Square }) g.DrawLine(pMark, inner.Left, inner.Bottom - 2, inner.Right, inner.Top + 2); break;
                     case "Texto": using (Font f = new Font("Segoe UI", 12, FontStyle.Bold)) { SizeF s = g.MeasureString("T", f); g.DrawString("T", f, Brushes.White, rect.X + (rect.Width - s.Width) / 2, rect.Y + (rect.Height - s.Height) / 2); } break;
                     case "Cor": using (Brush bColor = new SolidBrush(currentColor)) g.FillRectangle(bColor, inner); g.DrawRectangle(Pens.White, inner); break;
+                    case "Separator":
+                        if (MainContext.NavbarVertical)
+                            g.DrawLine(Pens.DimGray, rect.Left + 4, rect.Top + rect.Height / 2, rect.Right - 4, rect.Top + rect.Height / 2);
+                        else
+                            g.DrawLine(Pens.DimGray, rect.Left + rect.Width / 2, rect.Top + 4, rect.Left + rect.Width / 2, rect.Bottom - 4);
+                        break;
+                    case "Desfazer":
+                        // Curva apertada e profissional
+                        int arcW = inner.Width - 6;
+                        int arcH = inner.Height - 6;
+                        g.DrawArc(pWhite, inner.Left + 4, inner.Top + 6, arcW, arcH, 90, -180); // Curva inferior direita
+                        g.DrawLine(pWhite, inner.Left + 4 + arcW / 2, inner.Top + 6, inner.Left, inner.Top + 6); // Linha reta para a esquerda
+                        g.DrawLine(pWhite, inner.Left, inner.Top + 6, inner.Left + 4, inner.Top + 2); // Ponta da seta (cima)
+                        g.DrawLine(pWhite, inner.Left, inner.Top + 6, inner.Left + 4, inner.Top + 10); // Ponta da seta (baixo)
+                        break;
+                    case "Refazer":
+                        // Curva apertada e profissional
+                        int rArcW = inner.Width - 6;
+                        int rArcH = inner.Height - 6;
+                        g.DrawArc(pWhite, inner.Left + 2, inner.Top + 6, rArcW, rArcH, 90, 180); // Curva inferior esquerda
+                        g.DrawLine(pWhite, inner.Left + 2 + rArcW / 2, inner.Top + 6, inner.Right, inner.Top + 6); // Linha reta para a direita
+                        g.DrawLine(pWhite, inner.Right, inner.Top + 6, inner.Right - 4, inner.Top + 2); // Ponta da seta (cima)
+                        g.DrawLine(pWhite, inner.Right, inner.Top + 6, inner.Right - 4, inner.Top + 10); // Ponta da seta (baixo)
+                        break;
                     case "TelaCheia":
-                        // Desenha um pequeno quadrado central e bordas de expansão nos cantos
                         g.DrawRectangle(pWhite, inner.X + 3, inner.Y + 3, inner.Width - 6, inner.Height - 6);
                         g.DrawLine(pWhite, inner.X, inner.Y, inner.X + 4, inner.Y);
                         g.DrawLine(pWhite, inner.X, inner.Y, inner.X, inner.Y + 4);
@@ -679,32 +762,32 @@ namespace LiteShot.UI
             // --- CORREÇÃO DE VAZAMENTOS E ATALHOS ---
             if (e.Control && e.KeyCode == Keys.C && isSelectionFinished)
             {
-                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                e.SuppressKeyPress = true; e.Handled = true;
                 ExecutarAcaoToolbar("Copiar");
             }
 
             if (e.Control && e.KeyCode == Keys.S && isSelectionFinished)
             {
-                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                e.SuppressKeyPress = true; e.Handled = true;
                 ExecutarAcaoToolbar("Salvar");
             }
 
             if (e.Control && e.KeyCode == Keys.A)
             {
-                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
+                e.SuppressKeyPress = true; e.Handled = true;
                 SelecionarMonitorAtual();
             }
 
             if (e.Control && e.KeyCode == Keys.Z)
             {
-                e.SuppressKeyPress = true; e.Handled = true; // Bloqueia o vazamento
-                if (historicoDesenho.Count > 0)
-                {
-                    Bitmap oldLayer = drawingLayer;
-                    drawingLayer = historicoDesenho.Pop();
-                    oldLayer.Dispose();
-                    this.Invalidate();
-                }
+                e.SuppressKeyPress = true; e.Handled = true;
+                AcaoDesfazer();
+            }
+
+            if (e.Control && e.KeyCode == Keys.Y)
+            {
+                e.SuppressKeyPress = true; e.Handled = true;
+                AcaoRefazer();
             }
         }
 
@@ -758,11 +841,14 @@ namespace LiteShot.UI
                 }
                 foreach (var btn in toolbarButtons)
                 {
-                    if (ferramentaAtual == btn.Key || (btn.Key == "TelaCheia" && MainContext.FullScreenMode))
+                    if (btn.Key != "Separator")
                     {
-                        using (Brush activeBrush = new SolidBrush(Color.DimGray))
+                        if (ferramentaAtual == btn.Key || (btn.Key == "TelaCheia" && MainContext.FullScreenMode))
                         {
-                            g.FillRectangle(activeBrush, btn.Value);
+                            using (Brush activeBrush = new SolidBrush(Color.DimGray))
+                            {
+                                g.FillRectangle(activeBrush, btn.Value);
+                            }
                         }
                     }
                     DrawIcon(g, btn.Key, btn.Value);
@@ -778,11 +864,8 @@ namespace LiteShot.UI
                 drawingLayer?.Dispose();
                 toolTip.Dispose();
 
-                // Limpa a memória das imagens guardadas na pilha
-                while (historicoDesenho.Count > 0)
-                {
-                    historicoDesenho.Pop().Dispose();
-                }
+                while (historicoDesenho.Count > 0) historicoDesenho.Pop().Dispose();
+                while (historicoRefazer.Count > 0) historicoRefazer.Pop().Dispose();
             }
             base.Dispose(disposing);
         }
