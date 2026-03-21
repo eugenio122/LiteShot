@@ -1,13 +1,12 @@
 LiteShot 🪶
 
-
 O LiteShot é uma ferramenta de captura de tela leve, offline e focada em produtividade. Desenvolvido em C# (.NET 10) e Windows Forms, ele substitui a tela de captura padrão por um overlay interativo que permite desenhar, anotar e salvar suas capturas rapidamente.
 
 📥 Download
 
 Você não precisa baixar o código-fonte para usar! Baixe a versão pronta para uso diretamente na página de Releases do GitHub:
 
-👉 Baixar LiteShot (Versão Mais Recente) https://github.com/eugenio122/LiteShot/releases/tag/v1.2.0
+👉 **[Baixar LiteShot](https://github.com/eugenio122/LiteShot/releases)**
 
 ✨ Funcionalidades
 
@@ -15,19 +14,21 @@ Você não precisa baixar o código-fonte para usar! Baixe a versão pronta para
 
 Ferramentas de Anotação: Caneta, Marcador, Linha, Seta, Formas, Texto e Seletor de Cores.
 
-Borracha Mágica (Desfazer/Refazer): Errou o traço? Pressione Ctrl + Z para desfazer ou Ctrl + Y para refazer a anotação, ou utilize os novos botões dedicados na barra de ferramentas.
+Precisão e Preview: Ajuste a espessura do traço pixel a pixel com Ctrl + e Ctrl -, visualizando exatamente o tamanho através de um preview visual no cursor (estilo MS Paint) antes mesmo de desenhar.
 
-Seleção Inteligente & Memória: * Atalho Ctrl + A ou botão de expansão para capturar o monitor inteiro rapidamente.
+Borracha Mágica (Desfazer/Refazer): Errou o traço? Pressione Ctrl + Z para desfazer ou Ctrl + Y para refazer a anotação, ou utilize os botões dedicados na barra de ferramentas.
+
+Seleção Inteligente & Memória: * Atalho Ctrl + A ou botão de expansão para capturar o monitor inteiro rapidamente, com foco imediato do teclado.
 
 Opções para lembrar o tamanho e a posição exata da sua última captura e da barra de ferramentas.
 
 Interface Modular e Compacta: Arraste a barra de ferramentas para qualquer canto da tela clicando em qualquer espaço livre nela, ou mude seu layout para Vertical nas opções.
 
-Atalhos Globais: Escolha o seu próprio atalho (ex: PrintScreen, Ctrl+Shift+S) que funciona mesmo com o app minimizado na bandeja. Bloqueio nativo contra vazamento de eventos (Event Leaking).
+Atalhos Globais e Estabilidade: Escolha o seu próprio atalho (ex: PrintScreen, Ctrl+Shift+S) que funciona mesmo com o app minimizado. Construído com bloqueio nativo contra vazamento de memória (Event Leaking) para garantir total leveza e estabilidade durante todo o expediente de trabalho.
 
 Multilíngue (i18n): Suporte nativo para Português, Inglês, Espanhol, Francês, Alemão e Italiano.
 
-Portátil: Pode ser executado a partir de um único arquivo .exe sem necessidade de instalação.
+Portátil e Limpo: Pode ser executado a partir de um único arquivo .exe sem necessidade de instalação. As notificações de sucesso não poluem o menu Alt+Tab do Windows.
 
 🚀 Como usar
 
