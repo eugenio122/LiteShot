@@ -156,8 +156,25 @@ namespace LiteShot.UI
         /// <summary>Captura a combinação de teclas digitada pelo usuário e atualiza a interface.</summary>
         private void TxtHotkey_KeyDown(object? sender, KeyEventArgs e)
         {
-            e.SuppressKeyPress = true;
-            if (e.KeyCode == Keys.ControlKey || e.KeyCode == Keys.ShiftKey || e.KeyCode == Keys.Menu) return;
+            e.SuppressKeyPress = true; // Impede que o texto seja digitado
+
+            // Ignora se for apenas uma tecla modificadora (Ctrl, Shift, Alt)
+            if (e.KeyCode == Keys.ControlKey || e.KeyCode == Keys.ShiftKey || e.KeyCode == Keys.Menu)
+                return;
+
+            // Validação de teclas reservadas
+            Keys[] reservedKeys = { Keys.A, Keys.C, Keys.S, Keys.Z, Keys.Y, Keys.Escape, Keys.Oemplus, Keys.Add, Keys.OemMinus, Keys.Subtract };
+
+            if (Array.Exists(reservedKeys, key => key == e.KeyCode))
+            {
+                MessageBox.Show(
+                    "Esta tecla já é usada como um atalho interno do LiteShot. Por favor, escolha outra.",
+                    "Atalho Reservado",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             uint modifiers = HotkeyManager.MOD_NONE;
             if (e.Control) modifiers |= HotkeyManager.MOD_CONTROL;
             if (e.Shift) modifiers |= HotkeyManager.MOD_SHIFT;

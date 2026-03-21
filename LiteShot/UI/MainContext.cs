@@ -71,12 +71,25 @@ namespace LiteShot.UI
         // Abrir a janela Sobre:
         private void OpenAbout(object? sender, EventArgs e)
         {
-            Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(320, 180), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
-            Label lbl = new Label { Text = "LiteShot v1.0.0\n\nDesenvolvido para máxima produtividade.", Dock = DockStyle.Top, Height = 80, TextAlign = ContentAlignment.MiddleCenter };
-            LinkLabel lnk = new LinkLabel { Text = "Página no GitHub", Dock = DockStyle.Top, TextAlign = ContentAlignment.MiddleCenter };
+            Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(350, 320), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
+
+            Label lblTitle = new Label { Text = "LiteShot v1.2.1", Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+
+            Label lblShortcuts = new Label
+            {
+                Text = LanguageManager.GetString("AboutShortcuts"),
+                Dock = DockStyle.Top,
+                Height = 160,
+                Padding = new Padding(20, 10, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            LinkLabel lnk = new LinkLabel { Text = LanguageManager.GetString("AboutGitHub"), Dock = DockStyle.Bottom, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
             lnk.LinkClicked += (s, ev) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/eugenio122/LiteShot") { UseShellExecute = true });
+
+            about.Controls.Add(lblShortcuts);
+            about.Controls.Add(lblTitle);
             about.Controls.Add(lnk);
-            about.Controls.Add(lbl);
             about.ShowDialog();
         }
 
@@ -147,7 +160,17 @@ namespace LiteShot.UI
         /// <summary>Dispara a captura de tela e abre o overlay de edição (SelectionForm).</summary>
         public void TriggerScreenshot()
         {
-            if (currentSelectionForm != null && !currentSelectionForm.IsDisposed) return;
+            // Tratamento de Event Leak: Destrói completamente o formulário anterior da memória
+            if (currentSelectionForm != null)
+            {
+                if (!currentSelectionForm.IsDisposed)
+                {
+                    currentSelectionForm.Close();
+                    currentSelectionForm.Dispose();
+                }
+                currentSelectionForm = null;
+            }
+
             Bitmap screenshot = ScreenCapture.CaptureAllScreens();
             currentSelectionForm = new SelectionForm(screenshot);
             currentSelectionForm.Show();
@@ -156,7 +179,7 @@ namespace LiteShot.UI
         /// <summary>Exibe uma notificação elegante no canto inferior direito, opcionalmente com a miniatura da imagem.</summary>
         public static void ShowToast(string message, Bitmap? thumbnail = null)
         {
-            Form toast = new Form
+            ToastForm toast = new ToastForm
             {
                 Size = new Size(350, 80),
                 FormBorderStyle = FormBorderStyle.None,
@@ -235,6 +258,20 @@ namespace LiteShot.UI
             {
                 if (m.Msg == HotkeyManager.WM_HOTKEY) context.TriggerScreenshot();
                 base.WndProc(ref m);
+            }
+        }
+
+        // Classe auxiliar para criar uma notificação que o Alt+Tab ignora completamente
+        private class ToastForm : Form
+        {
+            protected override CreateParams CreateParams
+            {
+                get
+                {
+                    CreateParams cp = base.CreateParams;
+                    cp.ExStyle |= 0x80; // Adiciona o estilo WS_EX_TOOLWINDOW
+                    return cp;
+                }
             }
         }
     }

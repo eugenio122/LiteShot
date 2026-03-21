@@ -18,6 +18,7 @@ namespace LiteShot.UI
         private Point startPoint;
         private Rectangle selectionRect;
         private bool isSelectionFinished = false;
+        public static int PenWidth = 3;
 
         // Históricos para o Ctrl+Z (Desfazer) e Ctrl+Y (Refazer)
         private Stack<Bitmap> historicoDesenho = new Stack<Bitmap>();
@@ -74,6 +75,10 @@ namespace LiteShot.UI
             this.DoubleBuffered = true;
             this.Cursor = Cursors.Cross;
             this.ShowInTaskbar = false;
+
+            // Força o Windows a dar o foco do teclado para esta tela instantaneamente
+            this.Activate();
+            this.Focus();
 
             toolTip.InitialDelay = 500;
             toolTip.ReshowDelay = 100;
@@ -337,13 +342,15 @@ namespace LiteShot.UI
                         g.SmoothingMode = SmoothingMode.AntiAlias;
                         if (ferramentaAtual == "Caneta")
                         {
-                            using (Pen p = new Pen(currentColor, 3f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                            // Usa PenWidth no lugar do 3f
+                            using (Pen p = new Pen(currentColor, PenWidth) { StartCap = LineCap.Round, EndCap = LineCap.Round })
                                 g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         }
                         else
                         {
+                            // Usa PenWidth * 4 no lugar do 16f
                             Color semiTrans = Color.FromArgb(80, currentColor);
-                            using (Pen p = new Pen(semiTrans, 16f) { StartCap = LineCap.Square, EndCap = LineCap.Square })
+                            using (Pen p = new Pen(semiTrans, PenWidth * 4) { StartCap = LineCap.Square, EndCap = LineCap.Square })
                                 g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         }
                     }
@@ -430,15 +437,20 @@ namespace LiteShot.UI
 
                 if (!string.IsNullOrEmpty(hoveredBtn)) this.Cursor = Cursors.Hand;
                 else if (fullNavbarRect.Contains(e.Location)) this.Cursor = Cursors.SizeAll;
-                else if (!string.IsNullOrEmpty(ferramentaAtual)) this.Cursor = Cursors.Cross;
+                else if (!string.IsNullOrEmpty(ferramentaAtual))
+                {
+                    this.Cursor = Cursors.Cross;
+                    // Força a tela a redesenhar a bolinha do cursor enquanto o mouse se move livremente
+                    this.Invalidate();
+                }
                 else
                 {
                     var action = GetDragAction(e.Location);
                     if (action == DragAction.Move) this.Cursor = Cursors.SizeAll;
-                    else if (action == DragAction.ResizeTL || action == DragAction.ResizeBR) this.Cursor = Cursors.SizeNWSE; // Canto superior-esquerdo e inferior-direito
-                    else if (action == DragAction.ResizeTR || action == DragAction.ResizeBL) this.Cursor = Cursors.SizeNESW; // Canto superior-direito e inferior-esquerdo
-                    else if (action == DragAction.ResizeT || action == DragAction.ResizeB) this.Cursor = Cursors.SizeNS; // Cima e Baixo
-                    else if (action == DragAction.ResizeL || action == DragAction.ResizeR) this.Cursor = Cursors.SizeWE; // Esquerda e Direita
+                    else if (action == DragAction.ResizeTL || action == DragAction.ResizeBR) this.Cursor = Cursors.SizeNWSE;
+                    else if (action == DragAction.ResizeTR || action == DragAction.ResizeBL) this.Cursor = Cursors.SizeNESW;
+                    else if (action == DragAction.ResizeT || action == DragAction.ResizeB) this.Cursor = Cursors.SizeNS;
+                    else if (action == DragAction.ResizeL || action == DragAction.ResizeR) this.Cursor = Cursors.SizeWE;
                     else this.Cursor = Cursors.Default;
                 }
             }
@@ -472,12 +484,14 @@ namespace LiteShot.UI
                     using (Graphics g = Graphics.FromImage(drawingLayer))
                     {
                         g.SmoothingMode = SmoothingMode.AntiAlias;
-                        using (Pen p = new Pen(currentColor, 3f))
+                        // Usa PenWidth no lugar do 3f
+                        using (Pen p = new Pen(currentColor, PenWidth))
                         {
                             if (ferramentaAtual == "Linha") g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                             else if (ferramentaAtual == "Seta")
                             {
-                                p.CustomEndCap = new AdjustableArrowCap(5, 5);
+                                // Seta proporcional
+                                p.CustomEndCap = new AdjustableArrowCap(PenWidth + 2, PenWidth + 2);
                                 g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                             }
                             else if (ferramentaAtual == "Forma")
@@ -759,6 +773,24 @@ namespace LiteShot.UI
         {
             if (e.KeyCode == Keys.Escape) { if (!string.IsNullOrEmpty(ferramentaAtual)) { ferramentaAtual = ""; this.Invalidate(); } else this.Close(); }
 
+            // Atalho para Aumentar a espessura (Ctrl + '+' ou Ctrl + NumpadAdd)
+            if (e.Control && (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add))
+            {
+                if (PenWidth < 50) PenWidth++; // Pixel por pixel
+                this.Invalidate();
+                e.Handled = true;
+                return;
+            }
+
+            // Atalho para Diminuir a espessura (Ctrl + '-' ou Ctrl + NumpadSubtract)
+            if (e.Control && (e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract))
+            {
+                if (PenWidth > 1) PenWidth--; // Pixel por pixel
+                this.Invalidate();
+                e.Handled = true;
+                return;
+            }
+
             // --- CORREÇÃO DE VAZAMENTOS E ATALHOS ---
             if (e.Control && e.KeyCode == Keys.C && isSelectionFinished)
             {
@@ -807,12 +839,14 @@ namespace LiteShot.UI
                 if (isDrawingToolActive && (ferramentaAtual == "Linha" || ferramentaAtual == "Seta" || ferramentaAtual == "Forma"))
                 {
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (Pen p = new Pen(currentColor, 3f))
+                    // Usa PenWidth no lugar do 3f
+                    using (Pen p = new Pen(currentColor, PenWidth))
                     {
                         if (ferramentaAtual == "Linha") g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         else if (ferramentaAtual == "Seta")
                         {
-                            p.CustomEndCap = new AdjustableArrowCap(5, 5);
+                            // A seta cresce junto com a espessura para não ficar deformada
+                            p.CustomEndCap = new AdjustableArrowCap(PenWidth + 2, PenWidth + 2);
                             g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         }
                         else if (ferramentaAtual == "Forma")
@@ -852,6 +886,27 @@ namespace LiteShot.UI
                         }
                     }
                     DrawIcon(g, btn.Key, btn.Value);
+                }
+            }
+
+            // --- PREVIEW DA BOLINHA DO MOUSE ---
+            if (isSelectionFinished && !isDrawingToolActive && !string.IsNullOrEmpty(ferramentaAtual) && ferramentaAtual != "Texto" && ferramentaAtual != "Cor")
+            {
+                Point mousePos = this.PointToClient(Cursor.Position);
+                // Só desenha a bolinha se o mouse estiver dentro da área de seleção e fora da barra de ferramentas
+                if (selectionRect.Contains(mousePos) && !fullNavbarRect.Contains(mousePos))
+                {
+                    int pWidth = ferramentaAtual == "Marcador" ? PenWidth * 4 : PenWidth;
+                    Color pColor = ferramentaAtual == "Marcador" ? Color.FromArgb(180, currentColor) : currentColor;
+
+                    using (SolidBrush pb = new SolidBrush(pColor))
+                    using (Pen pBorder = new Pen(Color.White, 1f)) // Bordinha branca fina para não sumir no fundo escuro
+                    {
+                        int radius = pWidth / 2;
+                        if (radius < 1) radius = 1;
+                        g.FillEllipse(pb, mousePos.X - radius, mousePos.Y - radius, pWidth, pWidth);
+                        g.DrawEllipse(pBorder, mousePos.X - radius, mousePos.Y - radius, pWidth, pWidth);
+                    }
                 }
             }
         }

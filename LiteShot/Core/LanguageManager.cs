@@ -21,8 +21,8 @@ namespace LiteShot.Core
                 ["HotkeyLabel"] = "Tecla de Atalho:",
                 ["LangLabel"] = "Idioma:",
                 ["BtnSave"] = "Salvar e Fechar",
-                ["ToastCopied"] = "Copiado para a área de transferência!",
-                ["ToastSaved"] = "Imagem guardada com sucesso!",
+                ["ToastCopied"] = "Copiado para a área de clipboard!",
+                ["ToastSaved"] = "Imagem salva com sucesso!",
                 ["DevMode"] = "Em desenvolvimento...",
                 ["Caneta"] = "Caneta",
                 ["Linha"] = "Linha",
@@ -42,7 +42,9 @@ namespace LiteShot.Core
                 ["NavbarVertical"] = "Barra de Ferramentas Vertical",
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Manter posição da área selecionada",
-                ["KeepNavbarPosition"] = "Manter posição da barra de ferramentas"
+                ["KeepNavbarPosition"] = "Manter posição da barra de ferramentas",
+                ["AboutShortcuts"] = "Atalhos Padrão:\n\n• Ctrl + A: Selecionar o ecrã inteiro\n• Ctrl + Z: Desfazer a última anotação\n• Ctrl + Y: Refazer a última anotação\n• Ctrl + C: Copiar captura para a área de transferência\n• Ctrl + S: Salvar captura como arquivo\n• Ctrl + (+) ou (-): Aumentar/Diminuir espessura do traço\n• Esc: Cancelar captura",
+                ["AboutGitHub"] = "Página no GitHub"
             },
             ["en-US"] = new()
             {
@@ -74,7 +76,9 @@ namespace LiteShot.Core
                 ["NavbarVertical"] = "Vertical Toolbar",
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Keep selected area position",
-                ["KeepNavbarPosition"] = "Keep toolbar position"
+                ["KeepNavbarPosition"] = "Keep toolbar position",
+                ["AboutShortcuts"] = "Default Shortcuts:\n\n• Ctrl + A: Select full screen\n• Ctrl + Z: Undo last annotation\n• Ctrl + Y: Redo last annotation\n• Ctrl + C: Copy capture to clipboard\n• Ctrl + S: Save capture as file\n• Ctrl + (+) or (-): Increase/Decrease stroke thickness\n• Esc: Cancel capture",
+                ["AboutGitHub"] = "GitHub Page"
             },
             ["es-ES"] = new()
             {
@@ -106,7 +110,9 @@ namespace LiteShot.Core
                 ["NavbarVertical"] = "Barra de herramientas vertical",
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Mantener posición del área seleccionada",
-                ["KeepNavbarPosition"] = "Mantener posición de la barra de herramientas"
+                ["KeepNavbarPosition"] = "Mantener posición de la barra de herramientas",
+                ["AboutShortcuts"] = "Atajos de Teclado:\n\n• Ctrl + A: Seleccionar pantalla completa\n• Ctrl + Z: Deshacer la última anotación\n• Ctrl + Y: Rehacer la última anotación\n• Ctrl + C: Copiar captura al portapapeles\n• Ctrl + S: Guardar captura como archivo\n• Ctrl + (+) o (-): Aumentar/Disminuir grosor del trazo\n• Esc: Cancelar captura",
+                ["AboutGitHub"] = "Página en GitHub"
             },
             ["fr-FR"] = new()
             {
@@ -138,7 +144,9 @@ namespace LiteShot.Core
                 ["NavbarVertical"] = "Barre d'outils verticale",
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Conserver la position de la zone sélectionnée",
-                ["KeepNavbarPosition"] = "Conserver la position de la barre d'outils"
+                ["KeepNavbarPosition"] = "Conserver la position de la barre d'outils",
+                ["AboutShortcuts"] = "Raccourcis par défaut:\n\n• Ctrl + A: Sélectionner le plein écran\n• Ctrl + Z: Annuler la dernière annotation\n• Ctrl + Y: Rétablir la dernière annotation\n• Ctrl + C: Copier la capture dans le presse-papiers\n• Ctrl + S: Enregistrer la capture sous forme de fichier\n• Ctrl + (+) ou (-): Augmenter/Diminuer l'épaisseur du trait\n• Esc: Annuler la capture",
+                ["AboutGitHub"] = "Page GitHub"
             },
             ["de-DE"] = new()
             {
@@ -170,7 +178,9 @@ namespace LiteShot.Core
                 ["NavbarVertical"] = "Vertikale Symbolleiste",
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Position des ausgewählten Bereichs beibehalten",
-                ["KeepNavbarPosition"] = "Position der Symbolleiste beibehalten"
+                ["KeepNavbarPosition"] = "Position der Symbolleiste beibehalten",
+                ["AboutShortcuts"] = "Standard-Tastenkürzel:\n\n• Ctrl + A: Vollbild auswählen\n• Ctrl + Z: Letzte Anmerkung rückgängig machen\n• Ctrl + Y: Letzte Anmerkung wiederholen\n• Ctrl + C: Aufnahme in die Zwischenablage kopieren\n• Ctrl + S: Aufnahme als Datei speichern\n• Ctrl + (+) oder (-): Strichstärke vergrößern/verkleinern\n• Esc: Aufnahme abbrechen",
+                ["AboutGitHub"] = "GitHub-Seite"
             },
             ["it-IT"] = new()
             {
@@ -202,7 +212,9 @@ namespace LiteShot.Core
                 ["NavbarVertical"] = "Barra degli strumenti verticale",
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Mantieni posizione dell'area selezionata",
-                ["KeepNavbarPosition"] = "Mantieni posizione della barra degli strumenti"
+                ["KeepNavbarPosition"] = "Mantieni posizione della barra degli strumenti",
+                ["AboutShortcuts"] = "Scorciatoie Predefinite:\n\n• Ctrl + A: Seleziona schermo intero\n• Ctrl + Z: Annulla l'ultima annotazione\n• Ctrl + Y: Ripeti l'ultima annotazione\n• Ctrl + C: Copia cattura negli appunti\n• Ctrl + S: Salva cattura come file\n• Ctrl + (+) o (-): Aumenta/Riduci spessore del tratto\n• Esc: Annulla cattura",
+                ["AboutGitHub"] = "Pagina GitHub"
             }
         };
 
