@@ -26,6 +26,7 @@ namespace LiteShot.UI
         public static uint CurrentHotkey = HotkeyManager.VK_PRINTSCREEN;
 
         public static string LastColor = "#FF0000";
+        public static string LastHighlightColor = "#FFFF00";
         public static int[] CustomColors = new int[16];
 
         public static bool NavbarVertical = false;
@@ -60,6 +61,10 @@ namespace LiteShot.UI
             trayIcon.Text = LanguageManager.GetString("AppTooltip");
 
             trayIcon.ContextMenuStrip.Items.Clear();
+
+            trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Capturar"), null, (s, e) => TriggerScreenshot());
+            trayIcon.ContextMenuStrip.Items.Add("-");
+
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("SettingsTitle") + "...", null, OpenSettings);
 
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Sobre"), null, OpenAbout);
@@ -73,7 +78,7 @@ namespace LiteShot.UI
         {
             Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(350, 320), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
 
-            Label lblTitle = new Label { Text = "LiteShot v1.2.1", Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            Label lblTitle = new Label { Text = "LiteShot v1.2.2", Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
 
             Label lblShortcuts = new Label
             {
@@ -93,33 +98,45 @@ namespace LiteShot.UI
             about.ShowDialog();
         }
 
-        /// <summary>Desenha o ícone do Pincel/Stylus dinamicamente na memória (sem usar arquivo .ico externo).</summary>
+        /// <summary>Carrega o ícone original e aplica um zoom para remover as bordas transparentes inúteis.</summary>
         private Icon CreateAppIcon()
         {
-            using (Bitmap bmp = new Bitmap(32, 32))
+            try
             {
-                using (Graphics g = Graphics.FromImage(bmp))
+                // 1. Extrai o ícone oficial que foi compilado com o .exe
+#pragma warning disable CS8603 // Possible null reference return.
+                Icon originalIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+#pragma warning restore CS8603
+
+                using (Bitmap originalBmp = originalIcon.ToBitmap())
                 {
-                    g.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (Pen pHandle = new Pen(Color.FromArgb(100, 100, 100), 4f))
+                    // 2. Cria uma nova tela do mesmo tamanho para receber a imagem ampliada
+                    Bitmap zoomedBmp = new Bitmap(originalBmp.Width, originalBmp.Height);
+                    using (Graphics g = Graphics.FromImage(zoomedBmp))
                     {
-                        pHandle.StartCap = LineCap.Round;
-                        pHandle.EndCap = LineCap.Round;
-                        g.DrawLine(pHandle, 8, 24, 20, 12);
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                        // 3. Define o nível de Zoom (1.6f = 60% maior) para cortar o espaço transparente
+                        float zoom = 1.6f;
+                        int newWidth = (int)(originalBmp.Width * zoom);
+                        int newHeight = (int)(originalBmp.Height * zoom);
+
+                        // 4. Calcula o deslocamento para manter a caneta perfeitamente centrada
+                        int offsetX = (originalBmp.Width - newWidth) / 2;
+                        int offsetY = (originalBmp.Height - newHeight) / 2;
+
+                        g.DrawImage(originalBmp, offsetX, offsetY, newWidth, newHeight);
                     }
 
-                    GraphicsPath path = new GraphicsPath();
-                    path.AddBezier(new Point(20, 12), new Point(22, 6), new Point(28, 4), new Point(24, 10));
-                    path.CloseFigure();
-
-                    using (Brush bTip = new SolidBrush(Color.Turquoise))
-                    {
-                        g.FillPath(bTip, path);
-                    }
-
-                    g.DrawPath(Pens.White, path);
+                    // 5. Devolve o ícone agora preenchendo 100% do espaço útil da bandeja do Windows
+                    return Icon.FromHandle(zoomedBmp.GetHicon());
                 }
-                return Icon.FromHandle(bmp.GetHicon());
+            }
+            catch
+            {
+                // Fallback de segurança garantido
+                return SystemIcons.Application;
             }
         }
 
@@ -133,6 +150,7 @@ namespace LiteShot.UI
             CurrentHotkeyModifier = config.HotkeyModifier;
             CurrentHotkey = config.Hotkey;
             LastColor = config.LastColor;
+            LastHighlightColor = config.LastHighlightColor;
             CustomColors = config.CustomColors;
             FullScreenMode = config.FullScreenMode;
             NavbarVertical = config.NavbarVertical;

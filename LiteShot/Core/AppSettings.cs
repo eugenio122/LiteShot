@@ -18,6 +18,7 @@ namespace LiteShot.Core
         public uint Hotkey { get; set; } = HotkeyManager.VK_PRINTSCREEN;
 
         public string LastColor { get; set; } = "#FF0000"; // Vermelho por padrão
+        public string LastHighlightColor { get; set; } = "#FFFF00"; // Amarelo por padrão para marcador
         public int[] CustomColors { get; set; } = new int[16]; // 16 slots de cores personalizadas do Windows
 
         public string Language { get; set; } = "pt-BR";
@@ -58,8 +59,6 @@ namespace LiteShot.Core
             }
             catch (Exception ex)
             {
-                // Registra o erro para os programadores na aba de "Saída" do Visual Studio
-                // Garante que a aplicação portátil não crasha no PC do utilizador final
                 Debug.WriteLine($"[LiteShot] Erro ao carregar configurações: {ex.Message}");
             }
 
@@ -71,14 +70,12 @@ namespace LiteShot.Core
         {
             try
             {
-                // Escreve o JSON de forma indentada e bonita para ser fácil de ler
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(settings, options);
                 File.WriteAllText(SettingsFilePath, json);
             }
             catch (Exception ex)
             {
-                // Regista o erro (ex: sem permissões de escrita na pasta 'Program Files')
                 Debug.WriteLine($"[LiteShot] Erro ao guardar configurações: {ex.Message}");
             }
         }

@@ -14,6 +14,7 @@ namespace LiteShot.Core
         {
             ["pt-BR"] = new()
             {
+                ["Capturar"] = "Capturar Tela",
                 ["SettingsTitle"] = "Opções do LiteShot",
                 ["ShowNotifications"] = "Mostrar notificações ao copiar/salvar",
                 ["CaptureCursor"] = "Capturar cursor na imagem",
@@ -21,7 +22,7 @@ namespace LiteShot.Core
                 ["HotkeyLabel"] = "Tecla de Atalho:",
                 ["LangLabel"] = "Idioma:",
                 ["BtnSave"] = "Salvar e Fechar",
-                ["ToastCopied"] = "Copiado para a área de clipboard!",
+                ["ToastCopied"] = "Copiado para a área de transferência!",
                 ["ToastSaved"] = "Imagem salva com sucesso!",
                 ["DevMode"] = "Em desenvolvimento...",
                 ["Caneta"] = "Caneta",
@@ -43,11 +44,12 @@ namespace LiteShot.Core
                 ["AppTooltip"] = "LiteShot",
                 ["KeepSelection"] = "Manter posição da área selecionada",
                 ["KeepNavbarPosition"] = "Manter posição da barra de ferramentas",
-                ["AboutShortcuts"] = "Atalhos Padrão:\n\n• Ctrl + A: Selecionar o ecrã inteiro\n• Ctrl + Z: Desfazer a última anotação\n• Ctrl + Y: Refazer a última anotação\n• Ctrl + C: Copiar captura para a área de transferência\n• Ctrl + S: Salvar captura como arquivo\n• Ctrl + (+) ou (-): Aumentar/Diminuir espessura do traço\n• Esc: Cancelar captura",
+                ["AboutShortcuts"] = "Atalhos Padrão:\n\n• Ctrl + A: Selecionar a tela inteira\n• Ctrl + Z: Desfazer a última anotação\n• Ctrl + Y: Refazer a última anotação\n• Ctrl + C: Copiar captura para a área de transferência\n• Ctrl + S: Salvar captura como arquivo\n• Ctrl + (+) ou (-): Aumentar/Diminuir espessura do traço\n• Esc: Cancelar captura",
                 ["AboutGitHub"] = "Página no GitHub"
             },
             ["en-US"] = new()
             {
+                ["Capturar"] = "Capture Screen",
                 ["SettingsTitle"] = "LiteShot Options",
                 ["ShowNotifications"] = "Show notifications on copy/save",
                 ["CaptureCursor"] = "Capture cursor in image",
@@ -82,6 +84,7 @@ namespace LiteShot.Core
             },
             ["es-ES"] = new()
             {
+                ["Capturar"] = "Capturar Pantalla",
                 ["SettingsTitle"] = "Opciones de LiteShot",
                 ["ShowNotifications"] = "Mostrar notificaciones al copiar/guardar",
                 ["CaptureCursor"] = "Capturar el cursor en la imagen",
@@ -116,6 +119,7 @@ namespace LiteShot.Core
             },
             ["fr-FR"] = new()
             {
+                ["Capturar"] = "Capturer l'écran",
                 ["SettingsTitle"] = "Options LiteShot",
                 ["ShowNotifications"] = "Afficher les notifications lors de la copie/sauvegarde",
                 ["CaptureCursor"] = "Capturer le curseur dans l'image",
@@ -150,6 +154,7 @@ namespace LiteShot.Core
             },
             ["de-DE"] = new()
             {
+                ["Capturar"] = "Bildschirm erfassen",
                 ["SettingsTitle"] = "LiteShot-Optionen",
                 ["ShowNotifications"] = "Benachrichtigungen beim Kopieren/Speichern anzeigen",
                 ["CaptureCursor"] = "Cursor im Bild erfassen",
@@ -184,6 +189,7 @@ namespace LiteShot.Core
             },
             ["it-IT"] = new()
             {
+                ["Capturar"] = "Cattura schermo",
                 ["SettingsTitle"] = "Opzioni LiteShot",
                 ["ShowNotifications"] = "Mostra notifiche durante copia/salvataggio",
                 ["CaptureCursor"] = "Cattura cursore nell'immagine",

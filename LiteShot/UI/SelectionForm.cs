@@ -44,6 +44,7 @@ namespace LiteShot.UI
         // --- SISTEMA DE DESENHO ---
         private string ferramentaAtual = "";
         private Color currentColor;
+        private Color highlighterColor; // NOVO: Cor independente para o marcador
         private bool isDrawingToolActive = false;
         private Point drawStartPoint;
         private Point drawCurrentPoint;
@@ -65,8 +66,8 @@ namespace LiteShot.UI
                 g.Clear(Color.Transparent);
             }
 
-            try { this.currentColor = ColorTranslator.FromHtml(MainContext.LastColor); }
-            catch { this.currentColor = Color.Red; }
+            try { this.currentColor = ColorTranslator.FromHtml(MainContext.LastColor); } catch { this.currentColor = Color.Red; }
+            try { this.highlighterColor = ColorTranslator.FromHtml(MainContext.LastHighlightColor); } catch { this.highlighterColor = Color.Yellow; }
 
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.Manual;
@@ -86,7 +87,8 @@ namespace LiteShot.UI
             txtInput = new TextBox
             {
                 Visible = false,
-                BorderStyle = BorderStyle.FixedSingle,
+                BorderStyle = BorderStyle.None, // Removida a borda para parecer "Transparente"
+                BackColor = Color.FromArgb(40, 40, 40), // Fundo escuro igual ao overlay
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = this.currentColor
             };
@@ -94,8 +96,15 @@ namespace LiteShot.UI
             txtInput.LostFocus += TxtInput_LostFocus;
             this.Controls.Add(txtInput);
 
-            // 1. Garante que o atalho Ctrl+A é lido a qualquer momento
+            // 1. Garante que atalhos normais ainda sejam lidos (como o Ctrl + para espessura)
             this.KeyPreview = true;
+
+            // --- PROTEÇÃO CONTRA PERDA DE FOCO (PASSE VIP) ---
+            // Regista os atalhos VIP assim que o overlay carrega
+            this.Load += (s, e) => HotkeyManager.RegisterOverlayHotkeys(this.Handle);
+
+            // Devolve os atalhos ao Windows quando fechamos o overlay
+            this.FormClosed += (s, e) => HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
 
             // 2. Se a expansão automática estiver ativa, preenche logo a tela
             if (MainContext.FullScreenMode)
@@ -114,6 +123,60 @@ namespace LiteShot.UI
             }
         }
 
+        // --- CENTRAL DE COMANDOS BLINDADA (WndProc) ---
+        /// <summary>
+        /// Interceta os atalhos globais (Passe VIP) antes mesmo do Windows pensar em mandá-los
+        /// para o DBeaver ou Teams. Isso resolve a perda de foco definitivamente.
+        /// </summary>
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == HotkeyManager.WM_HOTKEY)
+            {
+                int id = m.WParam.ToInt32();
+
+                switch (id)
+                {
+                    case HotkeyManager.HOTKEY_ID_CTRL_A:
+                        SelecionarMonitorAtual();
+                        break;
+                    case HotkeyManager.HOTKEY_ID_CTRL_Z:
+                        AcaoDesfazer();
+                        break;
+                    case HotkeyManager.HOTKEY_ID_CTRL_Y:
+                        AcaoRefazer();
+                        break;
+                    case HotkeyManager.HOTKEY_ID_CTRL_C:
+                        if (isSelectionFinished) ExecutarAcaoToolbar("Copiar");
+                        break;
+                    case HotkeyManager.HOTKEY_ID_CTRL_S:
+                        if (isSelectionFinished) ExecutarAcaoToolbar("Salvar");
+                        break;
+                    case HotkeyManager.HOTKEY_ID_ESC:
+                        // Proteção caso o utilizador pressione Esc enquanto digita texto
+                        if (txtInput.Visible)
+                        {
+                            txtInput.Visible = false;
+                            txtInput.Text = "";
+                            ferramentaAtual = "";
+                            this.Focus();
+                            this.Invalidate();
+                        }
+                        else if (!string.IsNullOrEmpty(ferramentaAtual))
+                        {
+                            ferramentaAtual = "";
+                            this.Invalidate();
+                        }
+                        else
+                        {
+                            this.Close();
+                        }
+                        break;
+                }
+            }
+
+            base.WndProc(ref m);
+        }
+
         private void LimparRefazer()
         {
             while (historicoRefazer.Count > 0)
@@ -126,22 +189,33 @@ namespace LiteShot.UI
         /// <summary>Abre o seletor nativo do Windows para escolher a cor das anotações.</summary>
         private void AbrirSeletorDeCor()
         {
+            bool isHighlighter = (ferramentaAtual == "Marcador");
+
             using (ColorDialog cd = new ColorDialog())
             {
-                cd.Color = this.currentColor;
+                cd.Color = isHighlighter ? this.highlighterColor : this.currentColor;
                 cd.CustomColors = MainContext.CustomColors;
                 cd.FullOpen = true;
 
                 if (cd.ShowDialog(this) == DialogResult.OK)
                 {
-                    this.currentColor = cd.Color;
-                    this.txtInput.ForeColor = cd.Color;
+                    if (isHighlighter)
+                    {
+                        this.highlighterColor = cd.Color;
+                        MainContext.LastHighlightColor = ColorTranslator.ToHtml(cd.Color);
+                    }
+                    else
+                    {
+                        this.currentColor = cd.Color;
+                        this.txtInput.ForeColor = cd.Color;
+                        MainContext.LastColor = ColorTranslator.ToHtml(cd.Color);
+                    }
 
-                    MainContext.LastColor = ColorTranslator.ToHtml(cd.Color);
                     MainContext.CustomColors = cd.CustomColors;
 
                     AppSettings config = SettingsManager.Load();
                     config.LastColor = MainContext.LastColor;
+                    config.LastHighlightColor = MainContext.LastHighlightColor;
                     config.CustomColors = MainContext.CustomColors;
                     SettingsManager.Save(config);
 
@@ -179,6 +253,8 @@ namespace LiteShot.UI
                 e.SuppressKeyPress = true;
                 FinalizarTexto();
             }
+            // O Esc agora é capturado pelo WndProc de forma global,
+            // mas mantemos aqui por garantia secundária de contexto.
             else if (e.KeyCode == Keys.Escape)
             {
                 e.SuppressKeyPress = true;
@@ -342,14 +418,12 @@ namespace LiteShot.UI
                         g.SmoothingMode = SmoothingMode.AntiAlias;
                         if (ferramentaAtual == "Caneta")
                         {
-                            // Usa PenWidth no lugar do 3f
                             using (Pen p = new Pen(currentColor, PenWidth) { StartCap = LineCap.Round, EndCap = LineCap.Round })
                                 g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         }
                         else
                         {
-                            // Usa PenWidth * 4 no lugar do 16f
-                            Color semiTrans = Color.FromArgb(80, currentColor);
+                            Color semiTrans = Color.FromArgb(80, highlighterColor);
                             using (Pen p = new Pen(semiTrans, PenWidth * 4) { StartCap = LineCap.Square, EndCap = LineCap.Square })
                                 g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         }
@@ -484,7 +558,6 @@ namespace LiteShot.UI
                     using (Graphics g = Graphics.FromImage(drawingLayer))
                     {
                         g.SmoothingMode = SmoothingMode.AntiAlias;
-                        // Usa PenWidth no lugar do 3f
                         using (Pen p = new Pen(currentColor, PenWidth))
                         {
                             if (ferramentaAtual == "Linha") g.DrawLine(p, drawStartPoint, drawCurrentPoint);
@@ -547,7 +620,6 @@ namespace LiteShot.UI
 
             if (mudouAlgo) SettingsManager.Save(config);
         }
-
 
         // --- NAVBAR (BARRA DE FERRAMENTAS) ---
         /// <summary>Calcula as coordenadas da barra de ferramentas, mantendo-a dentro dos limites visíveis do monitor.</summary>
@@ -697,7 +769,12 @@ namespace LiteShot.UI
                     case "Forma": g.DrawRectangle(pWhite, inner); break;
                     case "Marcador": using (Pen pMark = new Pen(Color.FromArgb(180, Color.Yellow), 4f) { StartCap = LineCap.Square, EndCap = LineCap.Square }) g.DrawLine(pMark, inner.Left, inner.Bottom - 2, inner.Right, inner.Top + 2); break;
                     case "Texto": using (Font f = new Font("Segoe UI", 12, FontStyle.Bold)) { SizeF s = g.MeasureString("T", f); g.DrawString("T", f, Brushes.White, rect.X + (rect.Width - s.Width) / 2, rect.Y + (rect.Height - s.Height) / 2); } break;
-                    case "Cor": using (Brush bColor = new SolidBrush(currentColor)) g.FillRectangle(bColor, inner); g.DrawRectangle(Pens.White, inner); break;
+                    case "Cor":
+                        // UX: O botão de cor muda consoante a ferramenta escolhida!
+                        Color iconColor = ferramentaAtual == "Marcador" ? highlighterColor : currentColor;
+                        using (Brush bColor = new SolidBrush(iconColor)) g.FillRectangle(bColor, inner);
+                        g.DrawRectangle(Pens.White, inner);
+                        break;
                     case "Separator":
                         if (MainContext.NavbarVertical)
                             g.DrawLine(Pens.DimGray, rect.Left + 4, rect.Top + rect.Height / 2, rect.Right - 4, rect.Top + rect.Height / 2);
@@ -771,7 +848,8 @@ namespace LiteShot.UI
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Escape) { if (!string.IsNullOrEmpty(ferramentaAtual)) { ferramentaAtual = ""; this.Invalidate(); } else this.Close(); }
+            // Os atalhos principais (Ctrl+A, Z, Y, C, S, Esc) agora são interceptados de forma global
+            // pelo WndProc (Passe VIP), para evitar o vazamento de eventos e perda de foco.
 
             // Atalho para Aumentar a espessura (Ctrl + '+' ou Ctrl + NumpadAdd)
             if (e.Control && (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add))
@@ -789,37 +867,6 @@ namespace LiteShot.UI
                 this.Invalidate();
                 e.Handled = true;
                 return;
-            }
-
-            // --- CORREÇÃO DE VAZAMENTOS E ATALHOS ---
-            if (e.Control && e.KeyCode == Keys.C && isSelectionFinished)
-            {
-                e.SuppressKeyPress = true; e.Handled = true;
-                ExecutarAcaoToolbar("Copiar");
-            }
-
-            if (e.Control && e.KeyCode == Keys.S && isSelectionFinished)
-            {
-                e.SuppressKeyPress = true; e.Handled = true;
-                ExecutarAcaoToolbar("Salvar");
-            }
-
-            if (e.Control && e.KeyCode == Keys.A)
-            {
-                e.SuppressKeyPress = true; e.Handled = true;
-                SelecionarMonitorAtual();
-            }
-
-            if (e.Control && e.KeyCode == Keys.Z)
-            {
-                e.SuppressKeyPress = true; e.Handled = true;
-                AcaoDesfazer();
-            }
-
-            if (e.Control && e.KeyCode == Keys.Y)
-            {
-                e.SuppressKeyPress = true; e.Handled = true;
-                AcaoRefazer();
             }
         }
 
@@ -839,7 +886,6 @@ namespace LiteShot.UI
                 if (isDrawingToolActive && (ferramentaAtual == "Linha" || ferramentaAtual == "Seta" || ferramentaAtual == "Forma"))
                 {
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    // Usa PenWidth no lugar do 3f
                     using (Pen p = new Pen(currentColor, PenWidth))
                     {
                         if (ferramentaAtual == "Linha") g.DrawLine(p, drawStartPoint, drawCurrentPoint);
@@ -897,7 +943,7 @@ namespace LiteShot.UI
                 if (selectionRect.Contains(mousePos) && !fullNavbarRect.Contains(mousePos))
                 {
                     int pWidth = ferramentaAtual == "Marcador" ? PenWidth * 4 : PenWidth;
-                    Color pColor = ferramentaAtual == "Marcador" ? Color.FromArgb(180, currentColor) : currentColor;
+                    Color pColor = ferramentaAtual == "Marcador" ? Color.FromArgb(180, highlighterColor) : currentColor;
 
                     using (SolidBrush pb = new SolidBrush(pColor))
                     using (Pen pBorder = new Pen(Color.White, 1f)) // Bordinha branca fina para não sumir no fundo escuro

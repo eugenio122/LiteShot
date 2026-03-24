@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Windows.Forms; // Necessário para a enumeração 'Keys'
 
 namespace LiteShot.Core
 {
@@ -20,6 +21,14 @@ namespace LiteShot.Core
 
         public const uint VK_PRINTSCREEN = 0x2C; // Tecla PrintScreen
 
+        // --- ATALHOS TEMPORÁRIOS DO OVERLAY (PASSE VIP) ---
+        public const int HOTKEY_ID_CTRL_A = 101;
+        public const int HOTKEY_ID_CTRL_Z = 102;
+        public const int HOTKEY_ID_CTRL_Y = 103;
+        public const int HOTKEY_ID_ESC = 104;
+        public const int HOTKEY_ID_CTRL_C = 105;
+        public const int HOTKEY_ID_CTRL_S = 106;
+
         // O .NET 10 usa LibraryImport para gerar chamadas nativas otimizadas
         [LibraryImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -28,5 +37,32 @@ namespace LiteShot.Core
         [LibraryImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        /// <summary>
+        /// Regista os atalhos locais de forma global enquanto o overlay estiver aberto.
+        /// Impede que eventos vazem para programas em segundo plano (como DBeaver ou Teams).
+        /// </summary>
+        public static void RegisterOverlayHotkeys(IntPtr windowHandle)
+        {
+            RegisterHotKey(windowHandle, HOTKEY_ID_CTRL_A, MOD_CONTROL, (uint)Keys.A);
+            RegisterHotKey(windowHandle, HOTKEY_ID_CTRL_Z, MOD_CONTROL, (uint)Keys.Z);
+            RegisterHotKey(windowHandle, HOTKEY_ID_CTRL_Y, MOD_CONTROL, (uint)Keys.Y);
+            RegisterHotKey(windowHandle, HOTKEY_ID_ESC, MOD_NONE, (uint)Keys.Escape);
+            RegisterHotKey(windowHandle, HOTKEY_ID_CTRL_C, MOD_CONTROL, (uint)Keys.C);
+            RegisterHotKey(windowHandle, HOTKEY_ID_CTRL_S, MOD_CONTROL, (uint)Keys.S);
+        }
+
+        /// <summary>
+        /// Liberta os atalhos do overlay para o sistema operativo.
+        /// </summary>
+        public static void UnregisterOverlayHotkeys(IntPtr windowHandle)
+        {
+            UnregisterHotKey(windowHandle, HOTKEY_ID_CTRL_A);
+            UnregisterHotKey(windowHandle, HOTKEY_ID_CTRL_Z);
+            UnregisterHotKey(windowHandle, HOTKEY_ID_CTRL_Y);
+            UnregisterHotKey(windowHandle, HOTKEY_ID_ESC);
+            UnregisterHotKey(windowHandle, HOTKEY_ID_CTRL_C);
+            UnregisterHotKey(windowHandle, HOTKEY_ID_CTRL_S);
+        }
     }
 }
