@@ -56,7 +56,7 @@ Você não precisa baixar o código-fonte para usar! Baixe a versão pronta para
 
 * **Interface Modular e Compacta:** Arraste a barra de ferramentas para qualquer canto da tela clicando em qualquer espaço livre nela, ou mude seu layout para **Vertical** nas opções.
 
-* **Atalhos Globais e Estabilidade:** Escolha o seu próprio atalho (ex: PrintScreen, Ctrl+Shift+S) que funciona mesmo com o app minimizado. Construído com bloqueio nativo contra vazamento de memória (Event Leaking) para garantir total leveza e estabilidade durante todo o expediente de trabalho.
+* **Atalhos Globais e Estabilidade:** Escolha o seu próprio atalho que funciona mesmo com o app minimizado. Construído com bloqueio nativo contra vazamento de memória (Event Leaking) para garantir total leveza e estabilidade durante todo o expediente de trabalho.
 
 * **Multilíngue (i18n):** Suporte nativo para Português, Inglês, Espanhol, Francês, Alemão e Italiano.
 
