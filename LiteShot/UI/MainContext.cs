@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using LiteShot.Core;
+using LiteTools.Interfaces;
 
 namespace LiteShot.UI
 {
@@ -22,6 +23,9 @@ namespace LiteShot.UI
         public static bool CaptureCursor = false;
         public static string ImageFormat = "PNG";
 
+        // Resolução de captura
+        public static string CaptureResolution = "1920x1080";
+
         public static uint CurrentHotkeyModifier = HotkeyManager.MOD_NONE;
         public static uint CurrentHotkey = HotkeyManager.VK_PRINTSCREEN;
 
@@ -37,16 +41,80 @@ namespace LiteShot.UI
         public static Rectangle LastSelection = Rectangle.Empty;
         public static Point LastNavbarPosition = Point.Empty;
 
-        /// <summary>Construtor: Carrega configurações, cria o ícone da bandeja e registra o atalho global.</summary>
+        // Canal de comunicação para o Dual-Mode 
+        private IImagePublisher? _publisher;
+
+        private bool _isPluginMode = false;
+
+        // Propriedade inteligente: ao mudar de valor, ela atualiza o ícone na hora.
+        public bool IsPluginMode
+        {
+            get => _isPluginMode;
+            set
+            {
+                _isPluginMode = value;
+                if (trayIcon != null)
+                {
+                    // Se ativou o modo plugin, o ícone fica invisível (!true = false)
+                    trayIcon.Visible = !_isPluginMode;
+                }
+            }
+        }
+
+        /// <summary>Construtor Modo Standalone (.exe)</summary>
         public MainContext()
         {
+            InitCore(false, null, null);
+        }
+
+        /// <summary>Construtor Modo Plugin (.dll) - Agora recebe o Idioma</summary>
+        public MainContext(IImagePublisher publisher, string hostLanguage)
+        {
+            InitCore(true, publisher, hostLanguage);
+        }
+
+        /// <summary>Inicialização centralizada para aplicar regras de arquitetura.</summary>
+        private void InitCore(bool isPlugin, IImagePublisher? publisher, string? hostLanguage)
+        {
+            _isPluginMode = isPlugin;
+            _publisher = publisher;
+
+            // 1. Lê o que está salvo no JSON local (pode conter um idioma velho)
             CarregarConfiguracoes();
+
+            // 2. Sincronização Global de Idioma (Se for plugin, a Nave-Mãe manda)
+            if (_isPluginMode && !string.IsNullOrEmpty(hostLanguage))
+            {
+                LanguageManager.CurrentLanguage = hostLanguage;
+            }
+
+            // 3. Aplica as Regras de Ouro da Resolução
+            if (!_isPluginMode)
+            {
+                // .exe: Não importa a resolução salva, esmaga e seta Automático
+                CaptureResolution = "Auto";
+            }
+            else
+            {
+                // .dll: Se estiver vazio (primeira vez), detecta o monitor
+                if (string.IsNullOrEmpty(CaptureResolution))
+                {
+                    int nativeWidth = Screen.PrimaryScreen.Bounds.Width;
+                    CaptureResolution = nativeWidth > 1920 ? "1920x1080" : "Auto";
+                }
+            }
+
+            // Atualiza o JSON com a decisão tomada (Idioma e Resolução alinhados)
+            AppSettings config = SettingsManager.Load();
+            config.CaptureResolution = CaptureResolution;
+            config.Language = LanguageManager.CurrentLanguage;
+            SettingsManager.Save(config);
 
             trayIcon = new NotifyIcon()
             {
                 Icon = CreateAppIcon(),
                 ContextMenuStrip = new ContextMenuStrip(),
-                Visible = true
+                Visible = !_isPluginMode
             };
 
             AtualizarTextosInterface();
@@ -78,7 +146,7 @@ namespace LiteShot.UI
         {
             Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(350, 320), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
 
-            Label lblTitle = new Label { Text = "LiteShot v1.2.2", Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            Label lblTitle = new Label { Text = "LiteShot v2.0.0", Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
 
             Label lblShortcuts = new Label
             {
@@ -103,39 +171,33 @@ namespace LiteShot.UI
         {
             try
             {
-                // 1. Extrai o ícone oficial que foi compilado com o .exe
-#pragma warning disable CS8603 // Possible null reference return.
+#pragma warning disable CS8603 
                 Icon originalIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 #pragma warning restore CS8603
 
                 using (Bitmap originalBmp = originalIcon.ToBitmap())
                 {
-                    // 2. Cria uma nova tela do mesmo tamanho para receber a imagem ampliada
                     Bitmap zoomedBmp = new Bitmap(originalBmp.Width, originalBmp.Height);
                     using (Graphics g = Graphics.FromImage(zoomedBmp))
                     {
                         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                         g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                        // 3. Define o nível de Zoom (1.6f = 60% maior) para cortar o espaço transparente
                         float zoom = 1.6f;
                         int newWidth = (int)(originalBmp.Width * zoom);
                         int newHeight = (int)(originalBmp.Height * zoom);
 
-                        // 4. Calcula o deslocamento para manter a caneta perfeitamente centrada
                         int offsetX = (originalBmp.Width - newWidth) / 2;
                         int offsetY = (originalBmp.Height - newHeight) / 2;
 
                         g.DrawImage(originalBmp, offsetX, offsetY, newWidth, newHeight);
                     }
 
-                    // 5. Devolve o ícone agora preenchendo 100% do espaço útil da bandeja do Windows
                     return Icon.FromHandle(zoomedBmp.GetHicon());
                 }
             }
             catch
             {
-                // Fallback de segurança garantido
                 return SystemIcons.Application;
             }
         }
@@ -160,6 +222,8 @@ namespace LiteShot.UI
             KeepNavbarPosition = config.KeepNavbarPosition;
             LastSelection = config.LastSelection;
             LastNavbarPosition = config.LastNavbarPosition;
+
+            CaptureResolution = config.CaptureResolution ?? "";
         }
 
         /// <summary>Associa o atalho escolhido pelo usuário à janela oculta do Windows.</summary>
@@ -178,7 +242,6 @@ namespace LiteShot.UI
         /// <summary>Dispara a captura de tela e abre o overlay de edição (SelectionForm).</summary>
         public void TriggerScreenshot()
         {
-            // Tratamento de Event Leak: Destrói completamente o formulário anterior da memória
             if (currentSelectionForm != null)
             {
                 if (!currentSelectionForm.IsDisposed)
@@ -191,10 +254,16 @@ namespace LiteShot.UI
 
             Bitmap screenshot = ScreenCapture.CaptureAllScreens();
             currentSelectionForm = new SelectionForm(screenshot);
+
+            currentSelectionForm.OnImageCopied += (bitmap) =>
+            {
+                _publisher?.Publish(bitmap);
+            };
+
             currentSelectionForm.Show();
         }
 
-        /// <summary>Exibe uma notificação elegante no canto inferior direito, opcionalmente com a miniatura da imagem.</summary>
+        /// <summary>Exibe uma notificação elegante no canto inferior direito.</summary>
         public static void ShowToast(string message, Bitmap? thumbnail = null)
         {
             ToastForm toast = new ToastForm
@@ -208,7 +277,6 @@ namespace LiteShot.UI
                 Opacity = 0.95
             };
 
-            // Miniatura
             if (thumbnail != null)
             {
                 PictureBox pb = new PictureBox
@@ -221,7 +289,6 @@ namespace LiteShot.UI
                 toast.Controls.Add(pb);
             }
 
-            // Mensagem
             Label lbl = new Label
             {
                 Text = message,
@@ -233,7 +300,6 @@ namespace LiteShot.UI
             };
             toast.Controls.Add(lbl);
 
-            // Botão Fechar
             Button btnClose = new Button
             {
                 Text = "✕",
@@ -248,7 +314,6 @@ namespace LiteShot.UI
             btnClose.Click += (s, e) => toast.Close();
             toast.Controls.Add(btnClose);
 
-            // Posiciona no canto inferior direito
             Rectangle workingArea = Screen.PrimaryScreen.WorkingArea;
             toast.Location = new Point(workingArea.Right - toast.Width - 20, workingArea.Bottom - toast.Height - 20);
 
@@ -261,13 +326,41 @@ namespace LiteShot.UI
 
         private void Exit(object? sender, EventArgs e)
         {
-            HotkeyManager.UnregisterHotKey(messageWindow.Handle, 1);
-            trayIcon.Visible = false;
-            trayIcon.Dispose();
-            Application.Exit();
+            if (_publisher != null || _isPluginMode)
+            {
+                this.Dispose();
+            }
+            else
+            {
+                Application.Exit();
+            }
         }
 
-        /// <summary>Classe aninhada: Uma janela invisível cuja única função é escutar a mensagem WM_HOTKEY do Windows.</summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (messageWindow != null)
+                {
+                    HotkeyManager.UnregisterHotKey(messageWindow.Handle, 1);
+                    messageWindow.Dispose();
+                }
+
+                if (trayIcon != null)
+                {
+                    trayIcon.Visible = false;
+                    trayIcon.Dispose();
+                }
+
+                if (currentSelectionForm != null && !currentSelectionForm.IsDisposed)
+                {
+                    currentSelectionForm.Close();
+                    currentSelectionForm.Dispose();
+                }
+            }
+            base.Dispose(disposing);
+        }
+
         private class HiddenMessageWindow : Form
         {
             private MainContext context;
@@ -279,7 +372,6 @@ namespace LiteShot.UI
             }
         }
 
-        // Classe auxiliar para criar uma notificação que o Alt+Tab ignora completamente
         private class ToastForm : Form
         {
             protected override CreateParams CreateParams
@@ -287,7 +379,7 @@ namespace LiteShot.UI
                 get
                 {
                     CreateParams cp = base.CreateParams;
-                    cp.ExStyle |= 0x80; // Adiciona o estilo WS_EX_TOOLWINDOW
+                    cp.ExStyle |= 0x80;
                     return cp;
                 }
             }

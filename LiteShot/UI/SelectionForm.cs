@@ -7,10 +7,6 @@ using LiteShot.Core;
 
 namespace LiteShot.UI
 {
-    /// <summary>
-    /// O Overlay principal do aplicativo (A tela escura onde se desenha e corta a imagem).
-    /// Gerencia a área de seleção, ferramentas de desenho e a barra de ferramentas móvel.
-    /// </summary>
     public partial class SelectionForm : Form
     {
         private Bitmap originalScreenshot;
@@ -20,43 +16,38 @@ namespace LiteShot.UI
         private bool isSelectionFinished = false;
         public static int PenWidth = 3;
 
-        // Históricos para o Ctrl+Z (Desfazer) e Ctrl+Y (Refazer)
         private Stack<Bitmap> historicoDesenho = new Stack<Bitmap>();
         private Stack<Bitmap> historicoRefazer = new Stack<Bitmap>();
 
-        // Navbar
         private Dictionary<string, Rectangle> toolbarButtons = new Dictionary<string, Rectangle>();
         private Rectangle fullNavbarRect;
         private Point navbarCustomPosition = Point.Empty;
         private bool isNavbarMoved = false;
 
-        // Tooltip
         private ToolTip toolTip = new ToolTip();
         private string lastButtonHovered = "";
 
-        // Lógica de Movimentação/Redimensionamento
         private enum DragAction { None, Create, Move, ResizeTL, ResizeT, ResizeTR, ResizeR, ResizeBR, ResizeB, ResizeBL, ResizeL, MoveNavbar }
         private DragAction currentAction = DragAction.None;
         private Point dragStartPoint;
         private Rectangle originalSelectionRect;
         private const int HandleSize = 8;
 
-        // --- SISTEMA DE DESENHO ---
         private string ferramentaAtual = "";
         private Color currentColor;
-        private Color highlighterColor; // NOVO: Cor independente para o marcador
+        private Color highlighterColor;
         private bool isDrawingToolActive = false;
         private Point drawStartPoint;
         private Point drawCurrentPoint;
         private TextBox txtInput;
 
-        // Variáveis para a nova Navbar arrastável
         private string pressedButton = "";
         private bool isDraggingNavbar = false;
 
+        public event Action<Bitmap>? OnImageCopied;
+
         public SelectionForm() { }
 
-        /// <summary>Construtor: Recebe a print limpa, escurece a tela e aguarda a ação do usuário.</summary>
         public SelectionForm(Bitmap screenshot)
         {
             this.originalScreenshot = screenshot;
@@ -77,7 +68,6 @@ namespace LiteShot.UI
             this.Cursor = Cursors.Cross;
             this.ShowInTaskbar = false;
 
-            // Força o Windows a dar o foco do teclado para esta tela instantaneamente
             this.Activate();
             this.Focus();
 
@@ -87,8 +77,8 @@ namespace LiteShot.UI
             txtInput = new TextBox
             {
                 Visible = false,
-                BorderStyle = BorderStyle.None, // Removida a borda para parecer "Transparente"
-                BackColor = Color.FromArgb(40, 40, 40), // Fundo escuro igual ao overlay
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.FromArgb(40, 40, 40),
                 Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = this.currentColor
             };
@@ -96,22 +86,15 @@ namespace LiteShot.UI
             txtInput.LostFocus += TxtInput_LostFocus;
             this.Controls.Add(txtInput);
 
-            // 1. Garante que atalhos normais ainda sejam lidos (como o Ctrl + para espessura)
             this.KeyPreview = true;
 
-            // --- PROTEÇÃO CONTRA PERDA DE FOCO (PASSE VIP) ---
-            // Regista os atalhos VIP assim que o overlay carrega
             this.Load += (s, e) => HotkeyManager.RegisterOverlayHotkeys(this.Handle);
-
-            // Devolve os atalhos ao Windows quando fechamos o overlay
             this.FormClosed += (s, e) => HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
 
-            // 2. Se a expansão automática estiver ativa, preenche logo a tela
             if (MainContext.FullScreenMode)
             {
                 SelecionarMonitorAtual();
             }
-            // 3. Restaura apenas a seleção (se a opção estiver ativa)
             else if (MainContext.KeepSelection && !MainContext.LastSelection.IsEmpty)
             {
                 if (SystemInformation.VirtualScreen.IntersectsWith(MainContext.LastSelection))
@@ -123,11 +106,6 @@ namespace LiteShot.UI
             }
         }
 
-        // --- CENTRAL DE COMANDOS BLINDADA (WndProc) ---
-        /// <summary>
-        /// Interceta os atalhos globais (Passe VIP) antes mesmo do Windows pensar em mandá-los
-        /// para o DBeaver ou Teams. Isso resolve a perda de foco definitivamente.
-        /// </summary>
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == HotkeyManager.WM_HOTKEY)
@@ -152,7 +130,6 @@ namespace LiteShot.UI
                         if (isSelectionFinished) ExecutarAcaoToolbar("Salvar");
                         break;
                     case HotkeyManager.HOTKEY_ID_ESC:
-                        // Proteção caso o utilizador pressione Esc enquanto digita texto
                         if (txtInput.Visible)
                         {
                             txtInput.Visible = false;
@@ -185,8 +162,6 @@ namespace LiteShot.UI
             }
         }
 
-        // --- SISTEMA DE DESENHO E FERRAMENTAS ---
-        /// <summary>Abre o seletor nativo do Windows para escolher a cor das anotações.</summary>
         private void AbrirSeletorDeCor()
         {
             bool isHighlighter = (ferramentaAtual == "Marcador");
@@ -224,12 +199,10 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Grava o texto digitado (TextBox) definitivamente na camada de desenho (Bitmap transparente).</summary>
         private void FinalizarTexto()
         {
             if (txtInput.Visible && !string.IsNullOrWhiteSpace(txtInput.Text))
             {
-                // Salva o estado atual na pilha ANTES de estampar o texto na imagem
                 historicoDesenho.Push((Bitmap)drawingLayer.Clone());
 
                 using (Graphics g = Graphics.FromImage(drawingLayer))
@@ -253,8 +226,6 @@ namespace LiteShot.UI
                 e.SuppressKeyPress = true;
                 FinalizarTexto();
             }
-            // O Esc agora é capturado pelo WndProc de forma global,
-            // mas mantemos aqui por garantia secundária de contexto.
             else if (e.KeyCode == Keys.Escape)
             {
                 e.SuppressKeyPress = true;
@@ -268,8 +239,6 @@ namespace LiteShot.UI
 
         private void TxtInput_LostFocus(object? sender, EventArgs e) => FinalizarTexto();
 
-        // --- SISTEMA DE SELEÇÃO E REDIMENSIONAMENTO ---
-        /// <summary>Atalho Ctrl+A: Pega os limites do monitor onde o mouse está e preenche a seleção.</summary>
         private void SelecionarMonitorAtual()
         {
             FinalizarTexto();
@@ -288,11 +257,10 @@ namespace LiteShot.UI
             this.Invalidate();
         }
 
-        /// <summary>Calcula as coordenadas dos 8 "quadradinhos" (handles) de redimensionamento da borda.</summary>
         private Rectangle[] GetHandles()
         {
             int hs2 = HandleSize / 2;
-            return new Rectangle[] {
+            Rectangle[] handles = new Rectangle[] {
                 new Rectangle(selectionRect.Left - hs2, selectionRect.Top - hs2, HandleSize, HandleSize),
                 new Rectangle(selectionRect.Left + selectionRect.Width/2 - hs2, selectionRect.Top - hs2, HandleSize, HandleSize),
                 new Rectangle(selectionRect.Right - hs2, selectionRect.Top - hs2, HandleSize, HandleSize),
@@ -302,9 +270,19 @@ namespace LiteShot.UI
                 new Rectangle(selectionRect.Left - hs2, selectionRect.Bottom - hs2, HandleSize, HandleSize),
                 new Rectangle(selectionRect.Left - hs2, selectionRect.Top + selectionRect.Height/2 - hs2, HandleSize, HandleSize)
             };
+
+            // NOVO: Anti-Corte. Garante que os quadrados não nascem fora da tela visível!
+            for (int i = 0; i < handles.Length; i++)
+            {
+                if (handles[i].Left < 0) handles[i].X = 0;
+                if (handles[i].Top < 0) handles[i].Y = 0;
+                if (handles[i].Right > this.Width) handles[i].X = this.Width - HandleSize;
+                if (handles[i].Bottom > this.Height) handles[i].Y = this.Height - HandleSize;
+            }
+
+            return handles;
         }
 
-        /// <summary>Verifica em qual parte da borda o mouse está para determinar o tipo de cursor e ação (Resize, Move, etc).</summary>
         private DragAction GetDragAction(Point p)
         {
             if (!isSelectionFinished) return DragAction.None;
@@ -317,8 +295,6 @@ namespace LiteShot.UI
             return DragAction.None;
         }
 
-        // --- EVENTOS DO MOUSE (O CORAÇÃO DO OVERLAY) ---
-        /// <summary>Inicia uma ação: Criar seleção, redimensionar, mover navbar ou iniciar um desenho.</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
@@ -341,8 +317,6 @@ namespace LiteShot.UI
 
             if (isSelectionFinished)
             {
-                // UX: Ao invés de executar o botão logo no clique (MouseDown),
-                // registra onde clicou e espera o MouseMove ou MouseUp.
                 if (fullNavbarRect.Contains(e.Location))
                 {
                     currentAction = DragAction.MoveNavbar;
@@ -373,10 +347,7 @@ namespace LiteShot.UI
                     else
                     {
                         LimparRefazer();
-
-                        // Salva o estado atual da camada de desenho ANTES de começar um novo traço/forma
                         historicoDesenho.Push((Bitmap)drawingLayer.Clone());
-
                         isDrawingToolActive = true;
                         drawStartPoint = e.Location;
                         drawCurrentPoint = e.Location;
@@ -405,7 +376,6 @@ namespace LiteShot.UI
             selectionRect = new Rectangle(e.X, e.Y, 0, 0);
         }
 
-        /// <summary>Executa a ação contínua: Arrastar a área, esticar bordas ou riscar a tela.</summary>
         protected override void OnMouseMove(MouseEventArgs e)
         {
             if (isDrawingToolActive)
@@ -437,7 +407,6 @@ namespace LiteShot.UI
                 int dx = e.X - dragStartPoint.X;
                 int dy = e.Y - dragStartPoint.Y;
 
-                // Se o mouse moveu mais de 3 pixels, consideramos arrasto e não clique!
                 if (Math.Abs(dx) > 3 || Math.Abs(dy) > 3)
                     isDraggingNavbar = true;
 
@@ -495,7 +464,6 @@ namespace LiteShot.UI
                     }
                 }
 
-                // Gerenciamento de ToolTip Traduzido
                 if (hoveredBtn != lastButtonHovered)
                 {
                     lastButtonHovered = hoveredBtn;
@@ -514,7 +482,6 @@ namespace LiteShot.UI
                 else if (!string.IsNullOrEmpty(ferramentaAtual))
                 {
                     this.Cursor = Cursors.Cross;
-                    // Força a tela a redesenhar a bolinha do cursor enquanto o mouse se move livremente
                     this.Invalidate();
                 }
                 else
@@ -530,10 +497,8 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Finaliza a ação atual (soltar o clique).</summary>
         protected override void OnMouseUp(MouseEventArgs e)
         {
-            // Se soltou o clique sem arrastar, ativa o botão!
             if (currentAction == DragAction.MoveNavbar)
             {
                 if (!isDraggingNavbar && !string.IsNullOrEmpty(pressedButton))
@@ -542,7 +507,6 @@ namespace LiteShot.UI
                 }
                 else if (isDraggingNavbar)
                 {
-                    // Se moveu a navbar, guarda independentemente da seleção (se a opção estiver ativa)
                     SalvarPosicoes();
                 }
                 currentAction = DragAction.None;
@@ -563,7 +527,6 @@ namespace LiteShot.UI
                             if (ferramentaAtual == "Linha") g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                             else if (ferramentaAtual == "Seta")
                             {
-                                // Seta proporcional
                                 p.CustomEndCap = new AdjustableArrowCap(PenWidth + 2, PenWidth + 2);
                                 g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                             }
@@ -585,8 +548,6 @@ namespace LiteShot.UI
                 {
                     isSelectionFinished = true;
                     CalcularPosicaoNavbar();
-
-                    // Salva as novas dimensões isoladamente
                     SalvarPosicoes();
                 }
                 else
@@ -598,7 +559,6 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Guarda as posições ativas independentemente umas das outras.</summary>
         private void SalvarPosicoes()
         {
             bool mudouAlgo = false;
@@ -621,8 +581,6 @@ namespace LiteShot.UI
             if (mudouAlgo) SettingsManager.Save(config);
         }
 
-        // --- NAVBAR (BARRA DE FERRAMENTAS) ---
-        /// <summary>Calcula as coordenadas da barra de ferramentas, mantendo-a dentro dos limites visíveis do monitor.</summary>
         private void CalcularPosicaoNavbar()
         {
             toolbarButtons.Clear();
@@ -630,12 +588,11 @@ namespace LiteShot.UI
 
             int bW = 34, bH = 34, margin = 2;
             int paddingBorder = 4;
-            int sepSize = 8; // Tamanho compacto apenas para o separador
+            int sepSize = 8;
 
             int totalW = paddingBorder * 2 - margin;
             int totalH = paddingBorder * 2 - margin;
 
-            // Pré-calcula o tamanho total da barra dependendo da orientação
             foreach (string btn in ferramentas)
             {
                 if (MainContext.NavbarVertical)
@@ -652,13 +609,11 @@ namespace LiteShot.UI
 
             if (!isNavbarMoved)
             {
-                // Se o utilizador pediu para manter a posição da navbar, ignora o grude padrão
                 if (MainContext.KeepNavbarPosition && !MainContext.LastNavbarPosition.IsEmpty)
                 {
                     navbarCustomPosition = MainContext.LastNavbarPosition;
-                    isNavbarMoved = true; // "Finge" que o usuário a moveu para a travar ali
+                    isNavbarMoved = true;
 
-                    // Limites de segurança para garantir que a barra não sai do ecrã se mudarmos de monitor
                     if (navbarCustomPosition.X + totalW > this.Width) navbarCustomPosition.X = this.Width - totalW - paddingBorder;
                     if (navbarCustomPosition.Y + totalH > this.Height) navbarCustomPosition.Y = this.Height - totalH - paddingBorder;
                     if (navbarCustomPosition.X < 0) navbarCustomPosition.X = paddingBorder;
@@ -688,12 +643,12 @@ namespace LiteShot.UI
 
                 if (MainContext.NavbarVertical)
                 {
-                    toolbarButtons.Add(btn, new Rectangle(btnX, btnY, bW, h)); // O separador ocupa a largura toda
+                    toolbarButtons.Add(btn, new Rectangle(btnX, btnY, bW, h));
                     btnY += h + margin;
                 }
                 else
                 {
-                    toolbarButtons.Add(btn, new Rectangle(btnX, btnY, w, bH)); // O separador ocupa a altura toda
+                    toolbarButtons.Add(btn, new Rectangle(btnX, btnY, w, bH));
                     btnX += w + margin;
                 }
             }
@@ -723,7 +678,6 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Gerencia cliques nos botões da navbar (Trocar ferramenta, Salvar, Copiar).</summary>
         private void ExecutarAcaoToolbar(string acao)
         {
             FinalizarTexto();
@@ -746,6 +700,7 @@ namespace LiteShot.UI
                     Bitmap cropped = GetCroppedImage();
                     Clipboard.SetImage(cropped);
                     if (MainContext.ShowNotifications) MainContext.ShowToast(LanguageManager.GetString("ToastCopied"), cropped);
+                    OnImageCopied?.Invoke(cropped);
                     this.Close();
                     break;
                 case "Salvar": SalvarImagem(); break;
@@ -753,7 +708,6 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Desenha manualmente (vetorialmente) os ícones das ferramentas dentro dos botões.</summary>
         private void DrawIcon(Graphics g, string nome, Rectangle rect)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -770,7 +724,6 @@ namespace LiteShot.UI
                     case "Marcador": using (Pen pMark = new Pen(Color.FromArgb(180, Color.Yellow), 4f) { StartCap = LineCap.Square, EndCap = LineCap.Square }) g.DrawLine(pMark, inner.Left, inner.Bottom - 2, inner.Right, inner.Top + 2); break;
                     case "Texto": using (Font f = new Font("Segoe UI", 12, FontStyle.Bold)) { SizeF s = g.MeasureString("T", f); g.DrawString("T", f, Brushes.White, rect.X + (rect.Width - s.Width) / 2, rect.Y + (rect.Height - s.Height) / 2); } break;
                     case "Cor":
-                        // UX: O botão de cor muda consoante a ferramenta escolhida!
                         Color iconColor = ferramentaAtual == "Marcador" ? highlighterColor : currentColor;
                         using (Brush bColor = new SolidBrush(iconColor)) g.FillRectangle(bColor, inner);
                         g.DrawRectangle(Pens.White, inner);
@@ -782,22 +735,20 @@ namespace LiteShot.UI
                             g.DrawLine(Pens.DimGray, rect.Left + rect.Width / 2, rect.Top + 4, rect.Left + rect.Width / 2, rect.Bottom - 4);
                         break;
                     case "Desfazer":
-                        // Curva apertada e profissional
                         int arcW = inner.Width - 6;
                         int arcH = inner.Height - 6;
-                        g.DrawArc(pWhite, inner.Left + 4, inner.Top + 6, arcW, arcH, 90, -180); // Curva inferior direita
-                        g.DrawLine(pWhite, inner.Left + 4 + arcW / 2, inner.Top + 6, inner.Left, inner.Top + 6); // Linha reta para a esquerda
-                        g.DrawLine(pWhite, inner.Left, inner.Top + 6, inner.Left + 4, inner.Top + 2); // Ponta da seta (cima)
-                        g.DrawLine(pWhite, inner.Left, inner.Top + 6, inner.Left + 4, inner.Top + 10); // Ponta da seta (baixo)
+                        g.DrawArc(pWhite, inner.Left + 4, inner.Top + 6, arcW, arcH, 90, -180);
+                        g.DrawLine(pWhite, inner.Left + 4 + arcW / 2, inner.Top + 6, inner.Left, inner.Top + 6);
+                        g.DrawLine(pWhite, inner.Left, inner.Top + 6, inner.Left + 4, inner.Top + 2);
+                        g.DrawLine(pWhite, inner.Left, inner.Top + 6, inner.Left + 4, inner.Top + 10);
                         break;
                     case "Refazer":
-                        // Curva apertada e profissional
                         int rArcW = inner.Width - 6;
                         int rArcH = inner.Height - 6;
-                        g.DrawArc(pWhite, inner.Left + 2, inner.Top + 6, rArcW, rArcH, 90, 180); // Curva inferior esquerda
-                        g.DrawLine(pWhite, inner.Left + 2 + rArcW / 2, inner.Top + 6, inner.Right, inner.Top + 6); // Linha reta para a direita
-                        g.DrawLine(pWhite, inner.Right, inner.Top + 6, inner.Right - 4, inner.Top + 2); // Ponta da seta (cima)
-                        g.DrawLine(pWhite, inner.Right, inner.Top + 6, inner.Right - 4, inner.Top + 10); // Ponta da seta (baixo)
+                        g.DrawArc(pWhite, inner.Left + 2, inner.Top + 6, rArcW, rArcH, 90, 180);
+                        g.DrawLine(pWhite, inner.Left + 2 + rArcW / 2, inner.Top + 6, inner.Right, inner.Top + 6);
+                        g.DrawLine(pWhite, inner.Right, inner.Top + 6, inner.Right - 4, inner.Top + 2);
+                        g.DrawLine(pWhite, inner.Right, inner.Top + 6, inner.Right - 4, inner.Top + 10);
                         break;
                     case "TelaCheia":
                         g.DrawRectangle(pWhite, inner.X + 3, inner.Y + 3, inner.Width - 6, inner.Height - 6);
@@ -817,8 +768,6 @@ namespace LiteShot.UI
             }
         }
 
-        // --- SAÍDA DE IMAGEM E RENDERIZAÇÃO ---
-        /// <summary>Abre o FileDialog para salvar a imagem combinada diretamente no disco (PNG, JPG, BMP).</summary>
         private void SalvarImagem()
         {
             using (SaveFileDialog sfd = new SaveFileDialog { Title = "LiteShot", Filter = "PNG|*.png|JPG|*.jpg|BMP|*.bmp", FileName = "LiteShot_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") })
@@ -834,7 +783,6 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Junta o print original + os desenhos (camada transparente) dentro da área selecionada.</summary>
         private Bitmap GetCroppedImage()
         {
             Bitmap cropped = new Bitmap(selectionRect.Width, selectionRect.Height);
@@ -843,34 +791,54 @@ namespace LiteShot.UI
                 g.DrawImage(originalScreenshot, new Rectangle(0, 0, cropped.Width, cropped.Height), selectionRect, GraphicsUnit.Pixel);
                 g.DrawImage(drawingLayer, new Rectangle(0, 0, cropped.Width, cropped.Height), selectionRect, GraphicsUnit.Pixel);
             }
+
+            if (MainContext.CaptureResolution != "Auto")
+            {
+                string[] resParts = MainContext.CaptureResolution.Split('x');
+                if (resParts.Length == 2 && int.TryParse(resParts[0], out int maxW) && int.TryParse(resParts[1], out int maxH))
+                {
+                    if (cropped.Width > maxW || cropped.Height > maxH)
+                    {
+                        float ratio = Math.Min((float)maxW / cropped.Width, (float)maxH / cropped.Height);
+                        int newW = (int)(cropped.Width * ratio);
+                        int newH = (int)(cropped.Height * ratio);
+
+                        Bitmap resized = new Bitmap(newW, newH);
+                        using (Graphics g = Graphics.FromImage(resized))
+                        {
+                            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                            g.SmoothingMode = SmoothingMode.AntiAlias;
+                            g.DrawImage(cropped, 0, 0, newW, newH);
+                        }
+
+                        cropped.Dispose();
+                        cropped = resized;
+                    }
+                }
+            }
+
             return cropped;
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            // Os atalhos principais (Ctrl+A, Z, Y, C, S, Esc) agora são interceptados de forma global
-            // pelo WndProc (Passe VIP), para evitar o vazamento de eventos e perda de foco.
-
-            // Atalho para Aumentar a espessura (Ctrl + '+' ou Ctrl + NumpadAdd)
             if (e.Control && (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add))
             {
-                if (PenWidth < 50) PenWidth++; // Pixel por pixel
+                if (PenWidth < 50) PenWidth++;
                 this.Invalidate();
                 e.Handled = true;
                 return;
             }
 
-            // Atalho para Diminuir a espessura (Ctrl + '-' ou Ctrl + NumpadSubtract)
             if (e.Control && (e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract))
             {
-                if (PenWidth > 1) PenWidth--; // Pixel por pixel
+                if (PenWidth > 1) PenWidth--;
                 this.Invalidate();
                 e.Handled = true;
                 return;
             }
         }
 
-        /// <summary>Motor de renderização: Desenha o fundo escuro, a seleção iluminada, as ferramentas ativas e os botões 60x por segundo.</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -891,7 +859,6 @@ namespace LiteShot.UI
                         if (ferramentaAtual == "Linha") g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         else if (ferramentaAtual == "Seta")
                         {
-                            // A seta cresce junto com a espessura para não ficar deformada
                             p.CustomEndCap = new AdjustableArrowCap(PenWidth + 2, PenWidth + 2);
                             g.DrawLine(p, drawStartPoint, drawCurrentPoint);
                         }
@@ -903,13 +870,31 @@ namespace LiteShot.UI
                         }
                     }
                 }
-                g.DrawRectangle(Pens.White, selectionRect);
+
+                // NOVO: Bordas desenhadas para DENTRO para nunca cortarem no limite da tela
+                using (Pen pBlack = new Pen(Color.Black, 1f))
+                using (Pen pWhite = new Pen(Color.White, 1f))
+                {
+                    // Exterior
+                    g.DrawRectangle(pBlack, selectionRect.X, selectionRect.Y, selectionRect.Width - 1, selectionRect.Height - 1);
+                    // Meio
+                    g.DrawRectangle(pWhite, selectionRect.X + 1, selectionRect.Y + 1, selectionRect.Width - 3, selectionRect.Height - 3);
+                    // Interior
+                    g.DrawRectangle(pBlack, selectionRect.X + 2, selectionRect.Y + 2, selectionRect.Width - 5, selectionRect.Height - 5);
+                }
             }
 
             if (isSelectionFinished && string.IsNullOrEmpty(ferramentaAtual))
             {
                 using (Brush hb = new SolidBrush(Color.White))
-                    foreach (var h in GetHandles()) g.FillRectangle(hb, h);
+                using (Pen hp = new Pen(Color.Black, 1f))
+                {
+                    foreach (var h in GetHandles())
+                    {
+                        g.FillRectangle(hb, h);
+                        g.DrawRectangle(hp, h);
+                    }
+                }
             }
 
             if (isSelectionFinished && toolbarButtons.Count > 0)
@@ -935,18 +920,16 @@ namespace LiteShot.UI
                 }
             }
 
-            // --- PREVIEW DA BOLINHA DO MOUSE ---
             if (isSelectionFinished && !isDrawingToolActive && !string.IsNullOrEmpty(ferramentaAtual) && ferramentaAtual != "Texto" && ferramentaAtual != "Cor")
             {
                 Point mousePos = this.PointToClient(Cursor.Position);
-                // Só desenha a bolinha se o mouse estiver dentro da área de seleção e fora da barra de ferramentas
                 if (selectionRect.Contains(mousePos) && !fullNavbarRect.Contains(mousePos))
                 {
                     int pWidth = ferramentaAtual == "Marcador" ? PenWidth * 4 : PenWidth;
                     Color pColor = ferramentaAtual == "Marcador" ? Color.FromArgb(180, highlighterColor) : currentColor;
 
                     using (SolidBrush pb = new SolidBrush(pColor))
-                    using (Pen pBorder = new Pen(Color.White, 1f)) // Bordinha branca fina para não sumir no fundo escuro
+                    using (Pen pBorder = new Pen(Color.White, 1f))
                     {
                         int radius = pWidth / 2;
                         if (radius < 1) radius = 1;

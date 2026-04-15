@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Windows.Forms; // Necessário para detetar a tela
 
 namespace LiteShot.Core
 {
@@ -14,6 +15,10 @@ namespace LiteShot.Core
         public bool ShowNotifications { get; set; } = true;
         public bool CaptureCursor { get; set; } = false;
         public string ImageFormat { get; set; } = "PNG";
+
+        // Vazio para o MainContext decidir a resolução padrão Auto ou Full HD com base se é .exe ou .dll
+        public string CaptureResolution { get; set; } = "";
+
         public uint HotkeyModifier { get; set; } = HotkeyManager.MOD_NONE;
         public uint Hotkey { get; set; } = HotkeyManager.VK_PRINTSCREEN;
 
