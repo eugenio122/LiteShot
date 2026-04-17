@@ -1,4 +1,4 @@
-# LiteShot 🪶
+# LiteShot :pen:
 
 O **LiteShot** é uma ferramenta de captura de tela leve, offline e focada em produtividade. Criado inicialmente como um projeto de estudo e como resposta a fricções reais no fluxo de trabalho de QA causadas por ferramentas pesadas ou lentas, o seu objetivo sempre foi garantir velocidade, baixo consumo de recursos e anotações imediatas. Desenvolvido em C# (.NET 10) e Windows Forms, ele substitui a tela de captura padrão por um overlay interativo que permite desenhar, anotar e salvar suas capturas rapidamente.
 
