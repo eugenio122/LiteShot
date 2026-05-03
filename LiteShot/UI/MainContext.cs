@@ -10,7 +10,7 @@ namespace LiteShot.UI
     /// <summary>
     /// O "Cérebro" do aplicativo em execução. 
     /// Substitui o Form principal padrão do Windows Forms, permitindo que o app rode 
-    /// direto na bandeja do sistema (System Tray) sem uma janela sempre aberta.
+    /// direto na bandeja do sistema (System Tray) ou atue como um serviço invisível em modo Plugin.
     /// </summary>
     public class MainContext : ApplicationContext
     {
@@ -18,35 +18,66 @@ namespace LiteShot.UI
         private HiddenMessageWindow messageWindow;
         private SelectionForm? currentSelectionForm;
 
+        /// <summary>Estado global do tema atual (Claro/Escuro).</summary>
+        public static bool IsDarkMode = true;
+
+        /// <summary>Indica se a área de seleção deve iniciar maximizada (Ecrã Inteiro).</summary>
         public static bool FullScreenMode = false;
+
+        /// <summary>Indica se deve exibir toasts (notificações) após ações como copiar ou salvar.</summary>
         public static bool ShowNotifications = true;
+
+        /// <summary>Indica se o cursor do rato deve ser capturado junto com a imagem.</summary>
         public static bool CaptureCursor = false;
+
+        /// <summary>Formato de exportação padrão (PNG, JPG, BMP).</summary>
         public static string ImageFormat = "PNG";
 
-        // Resolução de captura
+        /// <summary>Resolução limite aplicada ao gerar a imagem final. 'Auto' mantém o tamanho original.</summary>
         public static string CaptureResolution = "1920x1080";
 
+        /// <summary>Modificador da tecla de atalho global (ex: CTRL, SHIFT, ALT).</summary>
         public static uint CurrentHotkeyModifier = HotkeyManager.MOD_NONE;
+
+        /// <summary>Tecla virtual do atalho global (Padrão: PrintScreen).</summary>
         public static uint CurrentHotkey = HotkeyManager.VK_PRINTSCREEN;
 
+        /// <summary>Cor hexadecimal ativa para as ferramentas de desenho em geral.</summary>
         public static string LastColor = "#FF0000";
+
+        /// <summary>Cor hexadecimal ativa especificamente para a ferramenta Marcador.</summary>
         public static string LastHighlightColor = "#FFFF00";
+
+        /// <summary>Matriz com as cores personalizadas guardadas na paleta do utilizador.</summary>
         public static int[] CustomColors = new int[16];
 
+        /// <summary>Indica se a barra de ferramentas flutuante deve ser desenhada na vertical.</summary>
         public static bool NavbarVertical = false;
 
-        // Variáveis de Memória 
+        /// <summary>Indica se o sistema deve memorizar a posição da última seleção feita.</summary>
         public static bool KeepSelection = false;
+
+        /// <summary>Indica se o sistema deve memorizar a posição livre da barra de ferramentas.</summary>
         public static bool KeepNavbarPosition = false;
+
+        /// <summary>Coordenadas do último recorte realizado.</summary>
         public static Rectangle LastSelection = Rectangle.Empty;
+
+        /// <summary>Coordenadas da última posição da barra de ferramentas (Navbar).</summary>
         public static Point LastNavbarPosition = Point.Empty;
 
-        // Canal de comunicação para o Dual-Mode 
-        private IImagePublisher? _publisher;
-
+        // Dependências da nova arquitetura Fire-and-Forget
+        private ILiteHostContext? _hostContext;
+        private IEventBus? _eventBus;
         private bool _isPluginMode = false;
 
-        // Propriedade inteligente: ao mudar de valor, ela atualiza o ícone na hora.
+        /// <summary>Evento disparado internamente para notificar as janelas (UI) de que o tema mudou.</summary>
+        public event Action<bool>? OnThemeUpdated;
+
+        /// <summary>
+        /// Define se o LiteShot está a rodar dentro do LiteTools (.dll) ou sozinho (.exe).
+        /// Ao ativar o modo plugin, o ícone da bandeja é ocultado automaticamente.
+        /// </summary>
         public bool IsPluginMode
         {
             get => _isPluginMode;
@@ -55,48 +86,62 @@ namespace LiteShot.UI
                 _isPluginMode = value;
                 if (trayIcon != null)
                 {
-                    // Se ativou o modo plugin, o ícone fica invisível (!true = false)
                     trayIcon.Visible = !_isPluginMode;
                 }
             }
         }
 
-        /// <summary>Construtor Modo Standalone (.exe)</summary>
+        /// <summary>
+        /// Construtor utilizado quando o LiteShot é executado de forma autônoma (.exe).
+        /// Inicia sem injetar dependências do LiteTools.
+        /// </summary>
         public MainContext()
         {
-            InitCore(false, null, null);
+            InitCore(false, null, null, null);
         }
 
-        /// <summary>Construtor Modo Plugin (.dll) - Agora recebe o Idioma</summary>
-        public MainContext(IImagePublisher publisher, string hostLanguage)
+        /// <summary>
+        /// Construtor utilizado quando o LiteShot é carregado como Plugin (.dll).
+        /// Recebe as interfaces do ecossistema LiteTools para comunicação Fire-and-Forget.
+        /// </summary>
+        /// <param name="hostContext">Contexto global da Nave-Mãe.</param>
+        /// <param name="eventBus">Barramento de eventos do ecossistema.</param>
+        /// <param name="hostLanguage">O idioma global forçado pelo Host.</param>
+        public MainContext(ILiteHostContext hostContext, IEventBus eventBus, string hostLanguage)
         {
-            InitCore(true, publisher, hostLanguage);
+            InitCore(true, hostContext, eventBus, hostLanguage);
         }
 
-        /// <summary>Inicialização centralizada para aplicar regras de arquitetura.</summary>
-        private void InitCore(bool isPlugin, IImagePublisher? publisher, string? hostLanguage)
+        /// <summary>
+        /// Rotina de inicialização centralizada. Carrega configurações, aplica regras de 
+        /// resolução de acordo com a arquitetura e prepara o ícone e os atalhos.
+        /// </summary>
+        private void InitCore(bool isPlugin, ILiteHostContext? hostContext, IEventBus? eventBus, string? hostLanguage)
         {
             _isPluginMode = isPlugin;
-            _publisher = publisher;
+            _hostContext = hostContext;
+            _eventBus = eventBus;
 
-            // 1. Lê o que está salvo no JSON local (pode conter um idioma velho)
             CarregarConfiguracoes();
 
-            // 2. Sincronização Global de Idioma (Se for plugin, a Nave-Mãe manda)
+            // Sincronização Global de Idioma (Nave-Mãe dita a regra)
             if (_isPluginMode && !string.IsNullOrEmpty(hostLanguage))
             {
                 LanguageManager.CurrentLanguage = hostLanguage;
             }
 
-            // 3. Aplica as Regras de Ouro da Resolução
+            // Aplica as Regras da Resolução: 
+            // .exe sempre tira print em tamanho real (Auto).
+            // .dll protege a memória limitando resoluções gigantes a Full HD por padrão.
             if (!_isPluginMode)
             {
-                // .exe: Não importa a resolução salva, esmaga e seta Automático
                 CaptureResolution = "Auto";
+
+                // Verificação do Tema Global: O modo escuro é o padrão, mas tentamos detectar o tema do Windows para alinhar a experiência visual.
+                IsDarkMode = CheckWindowsDarkMode();
             }
             else
             {
-                // .dll: Se estiver vazio (primeira vez), detecta o monitor
                 if (string.IsNullOrEmpty(CaptureResolution))
                 {
                     int nativeWidth = Screen.PrimaryScreen.Bounds.Width;
@@ -104,7 +149,6 @@ namespace LiteShot.UI
                 }
             }
 
-            // Atualiza o JSON com a decisão tomada (Idioma e Resolução alinhados)
             AppSettings config = SettingsManager.Load();
             config.CaptureResolution = CaptureResolution;
             config.Language = LanguageManager.CurrentLanguage;
@@ -119,54 +163,63 @@ namespace LiteShot.UI
 
             AtualizarTextosInterface();
 
+            // Assinatura do Tema Global: Se a Nave-Mãe avisar que o tema mudou, nós aplicamos!
+            if (_eventBus != null)
+            {
+                _eventBus.Subscribe<ThemeChangedEvent>(e =>
+                {
+                    IsDarkMode = e.IsDarkMode;
+                    OnThemeUpdated?.Invoke(IsDarkMode);
+                });
+            }
+
             messageWindow = new HiddenMessageWindow(this);
             RegisterGlobalHotkey();
         }
 
-        /// <summary>Reconstrói o menu de contexto da bandeja aplicando o idioma atual.</summary>
+        /// <summary>
+        /// Reconstrói o menu de contexto (botão direito no ícone da bandeja)
+        /// puxando os textos atualizados do LanguageManager.
+        /// </summary>
         public void AtualizarTextosInterface()
         {
             trayIcon.Text = LanguageManager.GetString("AppTooltip");
-
             trayIcon.ContextMenuStrip.Items.Clear();
-
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Capturar"), null, (s, e) => TriggerScreenshot());
             trayIcon.ContextMenuStrip.Items.Add("-");
-
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("SettingsTitle") + "...", null, OpenSettings);
-
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Sobre"), null, OpenAbout);
-
             trayIcon.ContextMenuStrip.Items.Add("-");
             trayIcon.ContextMenuStrip.Items.Add(LanguageManager.GetString("Fechar"), null, Exit);
         }
 
-        // Abrir a janela Sobre:
+        /// <summary>
+        /// Exibe a janela de informações "Sobre o LiteShot", aplicando os textos localizados 
+        /// e ajustando as cores de acordo com o tema atual (Claro/Escuro).
+        /// </summary>
         private void OpenAbout(object? sender, EventArgs e)
         {
             Form about = new Form { Text = LanguageManager.GetString("Sobre"), Size = new Size(350, 320), StartPosition = FormStartPosition.CenterScreen, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
-
             Label lblTitle = new Label { Text = "LiteShot v2.0.0", Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
-
-            Label lblShortcuts = new Label
-            {
-                Text = LanguageManager.GetString("AboutShortcuts"),
-                Dock = DockStyle.Top,
-                Height = 160,
-                Padding = new Padding(20, 10, 0, 0),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
+            Label lblShortcuts = new Label { Text = LanguageManager.GetString("AboutShortcuts"), Dock = DockStyle.Top, Height = 160, Padding = new Padding(20, 10, 0, 0), TextAlign = ContentAlignment.MiddleLeft };
             LinkLabel lnk = new LinkLabel { Text = LanguageManager.GetString("AboutGitHub"), Dock = DockStyle.Bottom, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
             lnk.LinkClicked += (s, ev) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/eugenio122/LiteShot") { UseShellExecute = true });
 
             about.Controls.Add(lblShortcuts);
             about.Controls.Add(lblTitle);
             about.Controls.Add(lnk);
+
+            // Aplica o tema localmente no Form Sobre
+            about.BackColor = IsDarkMode ? Color.FromArgb(30, 30, 30) : SystemColors.Control;
+            about.ForeColor = IsDarkMode ? Color.White : Color.Black;
+
             about.ShowDialog();
         }
 
-        /// <summary>Carrega o ícone original e aplica um zoom para remover as bordas transparentes inúteis.</summary>
+        /// <summary>
+        /// Carrega o ícone da própria aplicação e aplica um redimensionamento interpolado (HighQualityBicubic)
+        /// para remover bordas transparentes excessivas e deixá-lo mais bonito na bandeja do Windows.
+        /// </summary>
         private Icon CreateAppIcon()
         {
             try
@@ -174,7 +227,6 @@ namespace LiteShot.UI
 #pragma warning disable CS8603 
                 Icon originalIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 #pragma warning restore CS8603
-
                 using (Bitmap originalBmp = originalIcon.ToBitmap())
                 {
                     Bitmap zoomedBmp = new Bitmap(originalBmp.Width, originalBmp.Height);
@@ -182,17 +234,13 @@ namespace LiteShot.UI
                     {
                         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                         g.SmoothingMode = SmoothingMode.AntiAlias;
-
                         float zoom = 1.6f;
                         int newWidth = (int)(originalBmp.Width * zoom);
                         int newHeight = (int)(originalBmp.Height * zoom);
-
                         int offsetX = (originalBmp.Width - newWidth) / 2;
                         int offsetY = (originalBmp.Height - newHeight) / 2;
-
                         g.DrawImage(originalBmp, offsetX, offsetY, newWidth, newHeight);
                     }
-
                     return Icon.FromHandle(zoomedBmp.GetHicon());
                 }
             }
@@ -202,7 +250,9 @@ namespace LiteShot.UI
             }
         }
 
-        /// <summary>Sincroniza as variáveis estáticas com os dados salvos no JSON.</summary>
+        /// <summary>
+        /// Sincroniza as variáveis estáticas locais com os dados gravados no ficheiro JSON de configuração.
+        /// </summary>
         private void CarregarConfiguracoes()
         {
             AppSettings config = SettingsManager.Load();
@@ -217,29 +267,36 @@ namespace LiteShot.UI
             FullScreenMode = config.FullScreenMode;
             NavbarVertical = config.NavbarVertical;
             LanguageManager.CurrentLanguage = config.Language;
-
             KeepSelection = config.KeepSelection;
             KeepNavbarPosition = config.KeepNavbarPosition;
             LastSelection = config.LastSelection;
             LastNavbarPosition = config.LastNavbarPosition;
-
             CaptureResolution = config.CaptureResolution ?? "";
         }
 
-        /// <summary>Associa o atalho escolhido pelo usuário à janela oculta do Windows.</summary>
+        /// <summary>
+        /// Regista a combinação de teclas escolhida pelo utilizador no sistema operativo,
+        /// associando-a a uma janela oculta que fica à escuta do pressionar da tecla.
+        /// </summary>
         public void RegisterGlobalHotkey()
         {
             HotkeyManager.UnregisterHotKey(messageWindow.Handle, 1);
             HotkeyManager.RegisterHotKey(messageWindow.Handle, 1, CurrentHotkeyModifier, CurrentHotkey);
         }
 
+        /// <summary>
+        /// Instancia e abre o painel de opções do LiteShot (Apenas útil em modo .exe autônomo).
+        /// </summary>
         private void OpenSettings(object? sender, EventArgs e)
         {
             SettingsForm settings = new SettingsForm(this);
             settings.Show();
         }
 
-        /// <summary>Dispara a captura de tela e abre o overlay de edição (SelectionForm).</summary>
+        /// <summary>
+        /// Ativa a "Lente da Câmera". Captura o ecrã instantaneamente e sobrepõe a interface
+        /// escura de recorte, injetando o barramento de eventos para processamento Fire-and-Forget.
+        /// </summary>
         public void TriggerScreenshot()
         {
             if (currentSelectionForm != null)
@@ -252,25 +309,27 @@ namespace LiteShot.UI
                 currentSelectionForm = null;
             }
 
+            // A captura agora obedece à união de todos os monitores via DPI-Awareness V2
             Bitmap screenshot = ScreenCapture.CaptureAllScreens();
-            currentSelectionForm = new SelectionForm(screenshot);
 
-            currentSelectionForm.OnImageCopied += (bitmap) =>
-            {
-                _publisher?.Publish(bitmap);
-            };
-
+            // Passamos o EventBus diretamente para a UI tratar a assincronicidade
+            currentSelectionForm = new SelectionForm(screenshot, _eventBus);
             currentSelectionForm.Show();
         }
 
-        /// <summary>Exibe uma notificação elegante no canto inferior direito.</summary>
+        /// <summary>
+        /// Cria e exibe uma notificação elegante e flutuante no canto inferior direito do ecrã,
+        /// que não rouba o foco do utilizador e desaparece sozinha após alguns segundos.
+        /// </summary>
+        /// <param name="message">A mensagem a ser exibida na notificação.</param>
+        /// <param name="thumbnail">Uma miniatura opcional da imagem capturada para ilustrar o toast.</param>
         public static void ShowToast(string message, Bitmap? thumbnail = null)
         {
             ToastForm toast = new ToastForm
             {
                 Size = new Size(350, 80),
                 FormBorderStyle = FormBorderStyle.None,
-                BackColor = Color.FromArgb(40, 40, 40),
+                BackColor = IsDarkMode ? Color.FromArgb(40, 40, 40) : Color.White,
                 StartPosition = FormStartPosition.Manual,
                 TopMost = true,
                 ShowInTaskbar = false,
@@ -279,37 +338,14 @@ namespace LiteShot.UI
 
             if (thumbnail != null)
             {
-                PictureBox pb = new PictureBox
-                {
-                    Image = thumbnail,
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Size = new Size(60, 60),
-                    Location = new Point(10, 10)
-                };
+                PictureBox pb = new PictureBox { Image = thumbnail, SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(60, 60), Location = new Point(10, 10) };
                 toast.Controls.Add(pb);
             }
 
-            Label lbl = new Label
-            {
-                Text = message,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                Location = new Point(80, 0),
-                Size = new Size(240, 80),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
+            Label lbl = new Label { Text = message, ForeColor = IsDarkMode ? Color.White : Color.Black, Font = new Font("Segoe UI", 9, FontStyle.Regular), Location = new Point(80, 0), Size = new Size(240, 80), TextAlign = ContentAlignment.MiddleLeft };
             toast.Controls.Add(lbl);
 
-            Button btnClose = new Button
-            {
-                Text = "✕",
-                FlatStyle = FlatStyle.Flat,
-                ForeColor = Color.Gray,
-                BackColor = Color.Transparent,
-                Size = new Size(25, 25),
-                Location = new Point(325, 5),
-                Font = new Font("Arial", 8, FontStyle.Bold)
-            };
+            Button btnClose = new Button { Text = "✕", FlatStyle = FlatStyle.Flat, ForeColor = Color.Gray, BackColor = Color.Transparent, Size = new Size(25, 25), Location = new Point(325, 5), Font = new Font("Arial", 8, FontStyle.Bold) };
             btnClose.FlatAppearance.BorderSize = 0;
             btnClose.Click += (s, e) => toast.Close();
             toast.Controls.Add(btnClose);
@@ -324,9 +360,13 @@ namespace LiteShot.UI
             timer.Start();
         }
 
+        /// <summary>
+        /// Encerra a execução do LiteShot. Em modo plugin, apenas destrói os recursos em memória;
+        /// em modo autônomo, derruba todo o processo da aplicação.
+        /// </summary>
         private void Exit(object? sender, EventArgs e)
         {
-            if (_publisher != null || _isPluginMode)
+            if (_eventBus != null || _isPluginMode)
             {
                 this.Dispose();
             }
@@ -336,6 +376,10 @@ namespace LiteShot.UI
             }
         }
 
+        /// <summary>
+        /// Limpa os recursos não geridos da memória (Hooks de Teclado, Ícones e Forms Abertos)
+        /// para evitar vazamentos (memory leaks) ao encerrar ou recarregar o módulo.
+        /// </summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -345,13 +389,11 @@ namespace LiteShot.UI
                     HotkeyManager.UnregisterHotKey(messageWindow.Handle, 1);
                     messageWindow.Dispose();
                 }
-
                 if (trayIcon != null)
                 {
                     trayIcon.Visible = false;
                     trayIcon.Dispose();
                 }
-
                 if (currentSelectionForm != null && !currentSelectionForm.IsDisposed)
                 {
                     currentSelectionForm.Close();
@@ -361,17 +403,52 @@ namespace LiteShot.UI
             base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// Um formulário "fantasma" que não aparece no ecrã. O seu único objetivo
+        /// é processar mensagens de nível baixo do sistema operativo (como teclas globais pressionadas).
+        /// </summary>
         private class HiddenMessageWindow : Form
         {
             private MainContext context;
-            public HiddenMessageWindow(MainContext context) { this.context = context; this.ShowInTaskbar = false; this.WindowState = FormWindowState.Minimized; }
+            public HiddenMessageWindow(MainContext context)
+            {
+                this.context = context;
+                this.ShowInTaskbar = false;
+                this.WindowState = FormWindowState.Minimized;
+            }
+
             protected override void WndProc(ref Message m)
             {
-                if (m.Msg == HotkeyManager.WM_HOTKEY) context.TriggerScreenshot();
+                if (m.Msg == HotkeyManager.WM_HOTKEY)
+                    context.TriggerScreenshot();
                 base.WndProc(ref m);
             }
         }
 
+        /// <summary>
+        /// Verifica se o Windows está em modo escuro.
+        /// </summary>
+        private bool CheckWindowsDarkMode()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    if (key != null && key.GetValue("AppsUseLightTheme") != null)
+                    {
+                        int val = (int)key.GetValue("AppsUseLightTheme");
+                        return val == 0; // 0 significa Dark Mode, 1 significa Light Mode
+                    }
+                }
+            }
+            catch { }
+            return true; // Se der erro ou for Windows antigo, assume Escuro por padrão
+        }
+
+        /// <summary>
+        /// Um formulário base para as notificações. Modifica os parâmetros de criação 
+        /// para forçar o Windows a desenhar o painel sem roubar o foco ativo do utilizador (ExStyle 0x80).
+        /// </summary>
         private class ToastForm : Form
         {
             protected override CreateParams CreateParams
@@ -379,7 +456,7 @@ namespace LiteShot.UI
                 get
                 {
                     CreateParams cp = base.CreateParams;
-                    cp.ExStyle |= 0x80;
+                    cp.ExStyle |= 0x80; // WS_EX_TOOLWINDOW
                     return cp;
                 }
             }

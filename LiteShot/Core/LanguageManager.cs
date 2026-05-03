@@ -3,19 +3,29 @@
 namespace LiteShot.Core
 {
     /// <summary>
-    /// Gerencia o sistema de internacionalização (i18n) do aplicativo.
-    /// Facilita a tradução da interface para múltiplos idiomas via dicionário em memória.
+    /// Gestor do sistema de internacionalização (i18n) do LiteShot.
+    /// Facilita a tradução da interface gráfica para múltiplos idiomas utilizando um dicionário estático em memória.
+    /// Em ambiente Plugin (.dll), o idioma dita as regras com base nas escolhas feitas no LiteTools (Host).
     /// </summary>
     public static class LanguageManager
     {
+        /// <summary>
+        /// Indica o idioma ativo a ser utilizado em toda a interface. 
+        /// (Ex: "pt-BR", "en-US", "es-ES").
+        /// </summary>
         public static string CurrentLanguage = "pt-BR";
 
+        /// <summary>
+        /// Dicionário mestre que guarda as traduções estruturadas. 
+        /// O primeiro nível é a sigla do idioma, e o segundo nível mapeia a "Chave" para o "Texto Traduzido".
+        /// </summary>
         private static readonly Dictionary<string, Dictionary<string, string>> Translations = new()
         {
             ["pt-BR"] = new()
             {
                 ["Capturar"] = "Capturar Tela",
                 ["SettingsTitle"] = "Opções do LiteShot",
+                ["DarkMode"] = "Modo Escuro (Apenas Standalone)",
                 ["ShowNotifications"] = "Mostrar notificações ao copiar/salvar",
                 ["CaptureCursor"] = "Capturar cursor na imagem",
                 ["ImgFormat"] = "Formato de Imagem:",
@@ -62,6 +72,7 @@ namespace LiteShot.Core
             {
                 ["Capturar"] = "Capture Screen",
                 ["SettingsTitle"] = "LiteShot Options",
+                ["DarkMode"] = "Dark Mode (Standalone only)",
                 ["ShowNotifications"] = "Show notifications on copy/save",
                 ["CaptureCursor"] = "Capture cursor in image",
                 ["ImgFormat"] = "Image Format:",
@@ -108,6 +119,7 @@ namespace LiteShot.Core
             {
                 ["Capturar"] = "Capturar Pantalla",
                 ["SettingsTitle"] = "Opciones de LiteShot",
+                ["DarkMode"] = "Modo Oscuro (Solo Standalone)",
                 ["ShowNotifications"] = "Mostrar notificaciones al copiar/guardar",
                 ["CaptureCursor"] = "Capturar el cursor en la imagen",
                 ["ImgFormat"] = "Formato de imagen:",
@@ -154,6 +166,7 @@ namespace LiteShot.Core
             {
                 ["Capturar"] = "Capturer l'écran",
                 ["SettingsTitle"] = "Options LiteShot",
+                ["DarkMode"] = "Mode Sombre (Autonome uniquement)",
                 ["ShowNotifications"] = "Afficher les notifications lors de la copie/sauvegarde",
                 ["CaptureCursor"] = "Capturer le curseur dans l'image",
                 ["ImgFormat"] = "Format d'image:",
@@ -200,6 +213,7 @@ namespace LiteShot.Core
             {
                 ["Capturar"] = "Bildschirm erfassen",
                 ["SettingsTitle"] = "LiteShot-Optionen",
+                ["DarkMode"] = "Dunkelmodus (Nur Standalone)",
                 ["ShowNotifications"] = "Benachrichtigungen beim Kopieren/Speichern anzeigen",
                 ["CaptureCursor"] = "Cursor im Bild erfassen",
                 ["ImgFormat"] = "Bildformat:",
@@ -246,6 +260,7 @@ namespace LiteShot.Core
             {
                 ["Capturar"] = "Cattura schermo",
                 ["SettingsTitle"] = "Opzioni LiteShot",
+                ["DarkMode"] = "Modalità Scura (Solo Standalone)",
                 ["ShowNotifications"] = "Mostra notifiche durante copia/salvataggio",
                 ["CaptureCursor"] = "Cattura cursore nell'immagine",
                 ["ImgFormat"] = "Formato immagine:",
@@ -291,8 +306,10 @@ namespace LiteShot.Core
         };
 
         /// <summary>
-        /// Procura a tradução baseada na chave e no idioma atual.
+        /// Procura a tradução do termo exato para o idioma atualmente configurado (CurrentLanguage).
         /// </summary>
+        /// <param name="key">A chave identificadora da string (ex: "BtnSave").</param>
+        /// <returns>A string traduzida, ou a própria chave caso a tradução não seja encontrada.</returns>
         public static string GetString(string key)
         {
             if (Translations.ContainsKey(CurrentLanguage) && Translations[CurrentLanguage].ContainsKey(key))

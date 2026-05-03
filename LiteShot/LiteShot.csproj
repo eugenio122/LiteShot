@@ -1,14 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Define que o projeto gera um executável para o utilizador, mas também gera a DLL base -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
+    <!-- Necessário para interoperabilidade nativa com as APIs do user32.dll (HotkeyManager) -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Ativa o DPI-Awareness V2, permitindo escalar em monitores 4K sem borrar o overlay -->
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
+    <!-- SingleFile para compilar num .exe único e portátil -->
     <PublishSingleFile>true</PublishSingleFile>
 
     <ApplicationIcon>app_icon.ico</ApplicationIcon>
@@ -18,6 +24,7 @@
     <Folder Include="Resources\" />
   </ItemGroup>
 
+  <!-- Referência ao DNA do ecossistema LiteTools (Interfaces e Eventos) -->
   <ItemGroup>
     <Reference Include="LiteTools.Interfaces">
       <HintPath>..\..\LiteTools\LiteTools\bin\Debug\net10.0-windows\LiteTools.Interfaces.dll</HintPath>
