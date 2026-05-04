@@ -111,7 +111,11 @@ namespace LiteShot.UI
             this.KeyPreview = true;
 
             this.Load += (s, e) => HotkeyManager.RegisterOverlayHotkeys(this.Handle);
-            this.FormClosed += (s, e) => HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+
+            // Usamos isHandleCreated também no FormClosed para extrema segurança
+            this.FormClosed += (s, e) => {
+                if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+            };
 
             if (MainContext.FullScreenMode)
             {
@@ -468,7 +472,9 @@ namespace LiteShot.UI
         /// </summary>
         private void CancelCapture()
         {
-            HotkeyManager.UnregisterOverlayHotkeys(this.Handle); // Liberta o teclado IMEDIATAMENTE
+            // Failsafe: Liberta o teclado global imediatamente antes de desaparecer
+            if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+
             this.Hide();
             if (_eventBus != null)
             {
@@ -477,6 +483,7 @@ namespace LiteShot.UI
             this.Close();
         }
 
+        /// <summary>Gerencia os cliques e executa os botões da barra de ferramentas flutuante.</summary>
         private void ExecutarAcaoToolbar(string acao)
         {
             FinalizarTexto();
@@ -502,7 +509,8 @@ namespace LiteShot.UI
         /// </summary>
         private void ProcessAndPublishImage()
         {
-            HotkeyManager.UnregisterOverlayHotkeys(this.Handle); // Liberta o teclado IMEDIATAMENTE
+            // Failsafe: Liberta o teclado global imediatamente antes de enviar para background
+            if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
             this.Hide();
 
             Rectangle rectProcess = selectionRect;
@@ -538,7 +546,9 @@ namespace LiteShot.UI
                 if (sfd.ShowDialog(this) == DialogResult.OK)
                 {
                     FinalizarTexto();
-                    HotkeyManager.UnregisterOverlayHotkeys(this.Handle); // Liberta o teclado IMEDIATAMENTE
+
+                    // Failsafe: Liberta o teclado global imediatamente antes de gravar
+                    if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
                     this.Hide();
 
                     Rectangle rectProcess = selectionRect;
@@ -722,8 +732,11 @@ namespace LiteShot.UI
         {
             if (disposing)
             {
-                // FAILSAFE: Garante que as teclas são libertadas mesmo em caso de destruição forçada da janela
-                HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+                // FAILSAFE guardado contra recriação de handle "zumbi" no momento da destruição
+                if (this.IsHandleCreated)
+                {
+                    HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+                }
 
                 originalScreenshot?.Dispose(); drawingLayer?.Dispose(); toolTip.Dispose();
                 while (historicoDesenho.Count > 0) historicoDesenho.Pop().Dispose();
