@@ -58,5 +58,7 @@ namespace LiteShot
                 _appContext = null;
             }
         }
+
+
     }
 }

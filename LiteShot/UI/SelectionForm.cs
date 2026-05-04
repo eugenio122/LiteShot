@@ -1,11 +1,12 @@
-﻿using System;
+﻿using LiteShot.Core;
+using LiteTools.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using LiteShot.Core;
-using LiteTools.Interfaces;
 
 namespace LiteShot.UI
 {
@@ -16,6 +17,17 @@ namespace LiteShot.UI
     /// </summary>
     public partial class SelectionForm : Form
     {
+        // --- APIS NATIVAS PARA GESTÃO DE FOCO (Evita puxar a Nave-Mãe para a frente) ---
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        private IntPtr previousForegroundWindow = IntPtr.Zero; // Memoriza a janela que estava ativa
+        // --------------------------------------------------------------------------------
+
         private Bitmap originalScreenshot;
         private Bitmap drawingLayer;
         private Point startPoint;
@@ -67,6 +79,10 @@ namespace LiteShot.UI
         /// <param name="eventBus">O barramento de comunicação do ecossistema LiteTools.</param>
         public SelectionForm(Bitmap screenshot, IEventBus? eventBus = null)
         {
+            // 1. Memoriza quem era a janela ativa no Windows antes do LiteShot roubar o ecrã
+            previousForegroundWindow = GetForegroundWindow();
+
+
             _eventBus = eventBus;
             this.originalScreenshot = screenshot;
             this.drawingLayer = new Bitmap(screenshot.Width, screenshot.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
@@ -112,6 +128,8 @@ namespace LiteShot.UI
 
             this.Load += (s, e) => HotkeyManager.RegisterOverlayHotkeys(this.Handle);
 
+
+
             // Usamos isHandleCreated também no FormClosed para extrema segurança
             this.FormClosed += (s, e) => {
                 if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
@@ -156,6 +174,8 @@ namespace LiteShot.UI
                         break;
                 }
             }
+
+
             base.WndProc(ref m);
         }
 
@@ -467,6 +487,20 @@ namespace LiteShot.UI
         private void AcaoRefazer() { if (historicoRefazer.Count > 0) { historicoDesenho.Push((Bitmap)drawingLayer.Clone()); Bitmap oldLayer = drawingLayer; drawingLayer = historicoRefazer.Pop(); oldLayer.Dispose(); this.Invalidate(); } }
 
         /// <summary>
+        /// Devolve o foco à janela anterior ANTES de ocultar o LiteShot,
+        /// impedindo que o Windows decida puxar a Nave-Mãe (LiteTools) para a frente.
+        /// </summary>
+        private void RestoreFocus()
+        {
+            if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+
+            if (previousForegroundWindow != IntPtr.Zero)
+            {
+                SetForegroundWindow(previousForegroundWindow);
+            }
+        }
+
+        /// <summary>
         /// MODO FIRE-AND-FORGET: Oculta a janela instantaneamente e emite um evento no barramento 
         /// avisando o ecossistema (como LiteFlow) que a ação foi cancelada.
         /// </summary>
@@ -509,6 +543,8 @@ namespace LiteShot.UI
         /// </summary>
         private void ProcessAndPublishImage()
         {
+            RestoreFocus(); 
+
             // Failsafe: Liberta o teclado global imediatamente antes de enviar para background
             if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
             this.Hide();
@@ -549,6 +585,9 @@ namespace LiteShot.UI
 
                     // Failsafe: Liberta o teclado global imediatamente antes de gravar
                     if (this.IsHandleCreated) HotkeyManager.UnregisterOverlayHotkeys(this.Handle);
+
+                    RestoreFocus();
+
                     this.Hide();
 
                     Rectangle rectProcess = selectionRect;
@@ -744,5 +783,7 @@ namespace LiteShot.UI
             }
             base.Dispose(disposing);
         }
+
+
     }
 }
