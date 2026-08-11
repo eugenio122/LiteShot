@@ -312,9 +312,52 @@ namespace LiteShot.UI
             // A captura agora obedece à união de todos os monitores via DPI-Awareness V2
             Bitmap screenshot = ScreenCapture.CaptureAllScreens();
 
-            // Passamos o EventBus diretamente para a UI tratar a assincronicidade
+            // ESTÁGIO 1: PRÉ-OVERLAY (Capturar a Tela Limpa para o LiteJson / IA)
+            if (_eventBus != null)
+            {
+                // Faz o downscale de forma síncrona (1~5ms) para evitar GDI+ Lock com a UI do Form
+                Bitmap raw720p = GerarRaw720p(screenshot);
+
+                Task.Run(() =>
+                {
+                    // Passamos null no StepId por agora, a Nave-Mãe saberá qual o passo ativo pelo contexto!
+                    _eventBus.Publish(new CaptureStartedEvent(raw720p, null));
+                });
+            }
+
+            // ESTÁGIO 2: O OVERLAY (Ferramenta de Seleção e Desenho)
             currentSelectionForm = new SelectionForm(screenshot, _eventBus);
             currentSelectionForm.Show();
+        }
+
+        /// <summary>
+        /// Cria uma cópia da imagem e aplica um downscale seguro para 720p (HD).
+        /// Garante que o envio da tela inteira (Raw) para a IA não comprometa a memória do LiteTools.
+        /// </summary>
+        private Bitmap GerarRaw720p(Bitmap original)
+        {
+            int maxW = 1280;
+            int maxH = 720;
+
+            if (original.Width <= maxW && original.Height <= maxH)
+            {
+                // Já é pequeno o suficiente, devolvemos uma cópia limpa
+                return new Bitmap(original);
+            }
+
+            float ratio = Math.Min((float)maxW / original.Width, (float)maxH / original.Height);
+            int newW = (int)(original.Width * ratio);
+            int newH = (int)(original.Height * ratio);
+
+            Bitmap resized = new Bitmap(newW, newH);
+            using (Graphics g = Graphics.FromImage(resized))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.DrawImage(original, 0, 0, newW, newH);
+            }
+
+            return resized;
         }
 
         /// <summary>
